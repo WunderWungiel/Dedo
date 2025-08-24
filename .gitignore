@@ -209,3 +209,6 @@ __marimo__/
 # Project-specific
 
 config.yml
+static/images/banners/*
+static/images/screenshots/*
+static/images/splashes/*

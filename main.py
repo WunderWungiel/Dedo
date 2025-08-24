@@ -1,3 +1,4 @@
+import os
 import math
 
 from flask import Flask, redirect, render_template, url_for, request
@@ -12,6 +13,17 @@ if config["proxy"]:
     app.wsgi_app = ProxyFix(
         app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
     )
+
+def format_size(size_bytes, decimals=2):
+
+    if size_bytes == 0:
+        return "0 bytes"
+    
+    power = 1024
+    units = ["bytes", "KB", "MB", "GB", "TB", "PB"]
+
+    i = int(math.floor(math.log(size_bytes, power)))
+    return f"{size_bytes / (power ** i):.{decimals}f} {units[i]}"
 
 def paginate(results, page, base_url, template, extra_content=None, url_args=None):
 
@@ -53,7 +65,14 @@ def _game_resolutions(id):
 @app.route("/games/<int:id>/screen/<resolution>")
 def _game_resolution(id, resolution):
     
-    return render_template("game.html", game=db.get_game(id), resolution=resolution)
+    game = db.get_game(id)
+    for model, files in game['resolutions'][resolution].items():
+        for i, file in enumerate(files):
+            path = os.path.join("static", "files", file['file_name'])
+            size = os.path.getsize(path) if os.path.isfile(path) else 0
+            game['resolutions'][resolution][model][i]['size'] = format_size(size)
+
+    return render_template("game.html", game=game, resolution=resolution)
 
 @app.route("/games/<int:id>")
 def _game_default(id):

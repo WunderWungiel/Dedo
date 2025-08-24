@@ -46,7 +46,7 @@
                 <a href="/static/files/{{ file['file_name'] }}" class="bluelink">
                 {{ file['type'].upper() if file['type'] in ['jar', 'jad'] else file['type']|lower }}
                 </a>
-                xxx KB
+                {{ file['size'] }}
                 {% if files|length > 1 and not loop.last %} | {% endif %}
                 {% endfor %}
         </div>

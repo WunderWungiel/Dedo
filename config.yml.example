@@ -1,0 +1,4 @@
+mongodb_uri: ''
+secret_key: ''
+proxy: false
+per_page: 10

@@ -15,8 +15,7 @@
     	<div class="NHRY">{{ game['title'] }}</div>
         {% if game['splash'] is defined %}
         <div class="SPLASH"> 
-            <!-- <a href="/static/images/splashes/{{ game['splash']['filename'] }}"><img src="/static/images/splashes/{{ game['splash']['filename'] }}" alt="." width="130" height="130"/></a> -->
-            <a href="{{ game['splash']['link'] }}"><img src="{{ game['splash']['link'] }}" alt="." width="130" height="130"/></a>
+            <a href="/static/images/splashes/{{ game['splash']['filename'] }}"><img src="/static/images/splashes/{{ game['splash'] }}" alt="." width="130" height="130"/></a>
         </div>
         {% endif %}
   
@@ -43,7 +42,7 @@
         <div class="LOAD">
             <img src="/static/images/arrow-black.gif" alt="." class="icon_img"/>
                 {% for file in files %}
-                <a href="/static/files/{{ file['file_name'] }}" class="bluelink">
+                <a href="/static/files/{{ file['filename'] }}" class="bluelink">
                 {{ file['type'].upper() if file['type'] in ['jar', 'jad'] else file['type']|lower }}
                 </a>
                 {{ file['size'] }}

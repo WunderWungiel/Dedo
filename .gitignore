@@ -212,3 +212,4 @@ config.yml
 static/images/banners/*
 static/images/screenshots/*
 static/images/splashes/*
+static/files/*

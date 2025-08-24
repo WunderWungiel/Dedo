@@ -1,0 +1,49 @@
+<?xml version="1.0"?><!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+    <head>
+        <title>Vendors - dedomil.net</title>
+        <link rel="stylesheet" href="/static/css/style.css" type="text/css" />
+        <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico" />
+        <meta name="viewport" content="width=device-width, user-scalable=no" />
+        <meta http-equiv="Content-Style-Type" content="text/css" charset="utf-8" />
+        <meta http-equiv="Cache-Control" content="must-revalidate"/>
+        <meta http-equiv="Cache-Control" content="no-cache"/>
+    </head>
+    <body>
+        {% for vendor in results %}
+        <div class="GMENU">
+            <img src="/static/images/arrow-black.gif" alt="." class="icon_img"> <a href="/games/vendor/{{ vendor }}" class="bluelink">{{ vendor }}</a>
+        </div>
+        {% endfor %}
+
+        <div class="info_NHIER" style="margin-top: 7px">* Vendor isn't not same like developer!</div>
+
+        {% if total_pages > 1 %}
+        
+        <div class="PAGES" style="margin-top: 7px; margin-bottom: -6px;">
+            {% if page > 1 %}
+            <a href="/games/vendors/page/1" class="PAGES2">&#171;&#171;</a> | 
+            <a href="/games/vendors/page/{{ page - 1 }}" class="PAGES2">&#171;prev</a>
+            {% endif %}
+            {% if page > 1 and page < total_pages %}
+            |
+            {% endif %}
+            {% if page != total_pages %}
+            <a href="/games/vendors/page/{{ page + 1 }}" class="PAGES2">next&#x00BB;</a> |
+            <a href="/games/vendors/page/{{ total_pages }}" class="PAGES2">&#x00BB;&#x00BB;</a>
+            {% endif %}
+        </div>
+
+        {% endif %}
+
+        <div class="HLISTA" style="margin-top: 7px;">
+            <a href="/" class="bluelink">Home</a>
+        </div>
+
+      	<div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>
+        <div class="END">&#169;&#160; Dedomil 2oo3-2o25</div>
+        
+    </body>
+</html>

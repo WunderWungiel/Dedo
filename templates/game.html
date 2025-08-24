@@ -1,0 +1,64 @@
+<?xml version="1.0"?><!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>Download {{ game['title'] }} {{ resolution }} Java Game - dedomil.net</title>
+        <link rel="stylesheet" href="/static/css/style.css" type="text/css" />
+        <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico" />
+        <meta name="viewport" content="width=device-width, user-scalable=no" />
+        <meta http-equiv="Content-Style-Type" content="text/css" charset="utf-8" />
+        <meta http-equiv="Cache-Control" content="must-revalidate"/>
+        <meta http-equiv="Cache-Control" content="no-cache"/>
+	    <meta http-equiv="content-language" content="en-gb">
+  </head>
+  <body>
+    	<div class="NHRY">{{ game['title'] }}</div>
+        {% if game['splash'] is defined %}
+        <div class="SPLASH"> 
+            <!-- <a href="/static/images/splashes/{{ game['splash']['filename'] }}"><img src="/static/images/splashes/{{ game['splash']['filename'] }}" alt="." width="130" height="130"/></a> -->
+            <a href="{{ game['splash']['link'] }}"><img src="{{ game['splash']['link'] }}" alt="." width="130" height="130"/></a>
+        </div>
+        {% endif %}
+  
+        {% if game['screenshot'] is defined %}
+        <div class="SECSCR">
+            <a href="/static/images/screenshots/{{ game['screenshot']['filename'] }}" class="bluelink">[second screenshot]</a>
+        </div>
+        {% endif %}
+  
+        <div class="OPIS"><img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Added</b>: {{ game['date'] }}<br/></div>
+        <div class="OPIS"><img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Downloads</b>: {{ game['downloads'] }}123446</div>
+        <div class="OPIS"><img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Vendor</b>: {{ game['vendor'] }}</div>
+
+        <div style="margin-bottom: 15px; margin-left: 5px; font-family: Times New Roman; font-size: small; color: #000033">
+            <img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Description</b>: {{ game['description'] | replace('\n', '<br>') | safe }}
+        </div>
+  
+        {% for model, files in game['resolutions'][resolution].items() %}
+
+        <div class="MODELS">
+            <img src="/static/images/arrow-black.gif" alt="." class="icon_img"/> {{ model }} (<b>{{ resolution }}</b>)
+        </div>
+
+        <div class="LOAD">
+            <img src="/static/images/arrow-black.gif" alt="." class="icon_img"/>
+                {% for file in files %}
+                <a href="/files/{{ file['file_name'] }}" class="bluelink">
+                {{ file['type'].upper() if file['type'] in ['jar', 'jad'] else file['type']|lower }}
+                </a>
+                xxx KB
+                {% if files|length > 1 and not loop.last %} | {% endif %}
+                {% endfor %}
+        </div>
+
+        {% endfor %}
+
+        <div class="HLISTA" style="margin-top: 7px;">
+            <a href="/" class="bluelink">Home</a>
+        </div>
+
+	    <div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>
+
+        <div class="END">&#169;&#160; Dedomil 2oo3-2o25</div>
+    </body>
+</html>

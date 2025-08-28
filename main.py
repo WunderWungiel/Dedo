@@ -68,8 +68,11 @@ def _game_resolution(id, resolution):
     game = db.get_game(id)
     for model, files in game['resolutions'][resolution].items():
         for i, file in enumerate(files):
-            path = os.path.join("static", "files", file['filename'])
-            size = os.path.getsize(path) if os.path.isfile(path) else 0
+            if not file.get('filename'):
+                size = 0
+            else:
+                path = os.path.join("static", "files", file['filename'])
+                size = os.path.getsize(path) if os.path.isfile(path) else 0
             game['resolutions'][resolution][model][i]['size'] = format_size(size)
 
     return render_template("game.html", game=game, resolution=resolution)

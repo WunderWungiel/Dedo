@@ -42,7 +42,11 @@
         <div class="LOAD">
             <img src="/static/images/arrow-black.gif" alt="." class="icon_img"/>
                 {% for file in files %}
+                {% if file['filename'] is defined %}
                 <a href="/static/files/{{ file['filename'] }}" class="bluelink">
+                {% else %}
+                <a href="#" class="bluelink">
+                {% endif %}
                 {{ file['type'].upper() if file['type'] in ['jar', 'jad'] else file['type']|lower }}
                 </a>
                 {{ file['size'] }}

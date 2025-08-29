@@ -24,7 +24,8 @@ def format_size(size_bytes, decimals=2):
     units = ["bytes", "KB", "MB", "GB", "TB", "PB"]
 
     i = int(math.floor(math.log(size_bytes, power)))
-    return f"{size_bytes / (power ** i):.{decimals}f} {units[i]}"
+    size = size_bytes / (power ** i)
+    return f"{int(size)} {units[i]}" if size.is_integer() else f"{size_bytes / (power ** i):.{decimals}f} {units[i]}"
 
 def paginate(results, page, base_url, template, extra_content=None, url_args=None):
 

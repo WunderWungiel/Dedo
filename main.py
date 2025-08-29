@@ -62,30 +62,25 @@ def _game_resolutions(id):
     
     return render_template("resolutions.html", game=db.get_game(id))
 
+@app.route("/games/<int:id>")
 @app.route("/games/<int:id>/screen/<resolution>")
-def _game_resolution(id, resolution):
+def _game_resolution(id, resolution=None):
     
     game = db.get_game(id)
-    for model, files in game['resolutions'][resolution].items():
-        for i, file in enumerate(files):
-            if not file.get('filename'):
-                size = 0
-            else:
-                path = os.path.join("static", "files", file['filename'])
-                size = os.path.getsize(path) if os.path.isfile(path) else 0
-            game['resolutions'][resolution][model][i]['size'] = format_size(size)
+
+    resolutions_to_use = [resolution] if resolution else game['resolutions'].keys()
+
+    for temp_resolution in resolutions_to_use:
+        for model, files in game['resolutions'][temp_resolution].items():
+            for i, file in enumerate(files):
+                if not file.get('filename'):
+                    size = 0
+                else:
+                    path = os.path.join("static", "files", file['filename'])
+                    size = os.path.getsize(path) if os.path.isfile(path) else 0
+                game['resolutions'][temp_resolution][model][i]['size'] = format_size(size)
 
     return render_template("game.html", game=game, resolution=resolution)
-
-@app.route("/games/<int:id>")
-def _game_default(id):
-    game = db.get_game(id)
-
-    if len(game['resolutions']) > 0:
-        resolution = list(game['resolutions'].keys())[0]
-        return redirect(url_for("_game_resolution", id=id, resolution=resolution))
-    else:
-        return redirect(url_for("_root"))
 
 @app.route("/games/search", methods=["GET", "POST"])
 def _search():

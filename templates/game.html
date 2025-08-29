@@ -33,6 +33,9 @@
             <img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Description</b>: {{ game['description'] | replace('\n', '<br>') | safe }}
         </div>
   
+        {% set resolutions_to_use = [resolution] if resolution else game['resolutions'].keys() %}
+
+        {% for resolution in resolutions_to_use %}
         {% for model, files in game['resolutions'][resolution].items() %}
 
         <div class="MODELS">
@@ -54,6 +57,7 @@
                 {% endfor %}
         </div>
 
+        {% endfor %}
         {% endfor %}
 
         <div class="HLISTA" style="margin-top: 7px;">

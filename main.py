@@ -151,7 +151,7 @@ def _vendors(page=None):
 @app.route("/games/vendor/<vendor>")
 @app.route("/games/vendor/<vendor>/page/<int:page>")
 def _vendor_games(vendor, page=None):
-    results = db.get_games(vendor=vendor)
+    results = db.get_games({"vendor": vendor})
 
     if len(results) == 0:
         return redirect(url_for("_vendors"))

@@ -12,7 +12,7 @@ def search(query):
 
     regex = re.compile(query, re.IGNORECASE)
 
-    results = games_collection.find({ "title": regex }).to_list()
+    results = games_collection.find({ "title": regex }, {"resolutions": 0}).to_list()
     results = [{**result, "date": result["date"].strftime("%d.%m.%Y")} for result in results]
     return results
 
@@ -28,21 +28,15 @@ def get_random_game(banner=None):
     results = games_collection.aggregate(pipeline).to_list()
     return results[0] if len(results) > 0 else None
 
-def get_games(id=None, title=None, vendor=None, resolution=None):
+def get_games(conditions=None, resolution=None):
 
-    query = {}
-    if id:
-        query["id"] = id
-    if title:
-        query["title"] = title
-    if vendor:
-        query["vendor"] = vendor
+    conditions = conditions or {}
     if resolution:
-        query[f"resolutions.{resolution}"] = {"$exists": True}
+        conditions[f"resolutions.{resolution}"] = {"$exists": True}
 
     games_collection = get_collection("games")
 
-    return games_collection.find(query).to_list()
+    return games_collection.find(conditions, {"resolutions": 0}).to_list()
 
 def get_game(id):
     games_collection = get_collection("games")
@@ -54,25 +48,26 @@ def get_game(id):
 def get_top_games(limit=50):
     games_collection = get_collection("games")
 
-    results = games_collection.find().sort("downloads", -1).limit(limit).to_list()
+    results = games_collection.find({}, {"resolutions": 0}).sort("downloads", -1).limit(limit).to_list()
     return results
 
 def get_latest_games(limit=15):
     games_collection = get_collection("games")
 
-    results = games_collection.find().sort("id", -1).limit(limit).to_list()
+    results = games_collection.find({}, {"resolutions": 0}).sort("id", -1).limit(limit).to_list()
     return results
 
 def get_vendors():
     games_collection = get_collection("games")
 
-    results = games_collection.find({}, {"_id": 0, "vendor": 1})
+    results = games_collection.find({}, {"_id": 0, "vendor": 1}).to_list()
 
-    return list(set([result["vendor"] for result in list(results)])) # Remove duplicates
+    vendors = [result["vendor"] for result in results]
+    return list(set(vendors))
 
 def get_resolutions():
     games_collection = get_collection("games")
     results = games_collection.find({}, {"_id": 0, "resolutions": 1})
 
-    resolutions = list({key for result in results for key in result["resolutions"].keys()})
+    resolutions = list({key for result in results for key in result["resolutions"].keys()}) # Curly brackets make set - removing duplicates
     return resolutions

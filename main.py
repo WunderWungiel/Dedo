@@ -1,7 +1,7 @@
 import os
 import math
 
-from flask import Flask, redirect, render_template, url_for, request
+from flask import Flask, redirect, render_template, url_for, send_from_directory, request
 
 from lib import config, db
 
@@ -50,6 +50,11 @@ def paginate(results, page, base_url, template, extra_content=None, url_args=Non
         context.update(extra_content)
 
     return render_template(template, **context)
+
+if not config["allow_indexing"]:
+    @app.route("/robots.txt")
+    def _robots():
+        return send_from_directory("static", "robots.txt")
 
 @app.route("/")
 def _root():

@@ -6,6 +6,7 @@ from flask import Flask, redirect, render_template, url_for, request
 from lib import config, db
 
 app = Flask(__name__)
+app.url_map.strict_slashes = False
 app.config['secret_key'] = config["secret_key"]
 
 if config["proxy"]:
@@ -51,7 +52,7 @@ def paginate(results, page, base_url, template, extra_content=None, url_args=Non
 
 @app.route("/")
 def _root():
-    return redirect("/games")
+    return redirect(url_for("_games"))
 
 @app.route("/games")
 def _games():

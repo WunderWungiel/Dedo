@@ -184,5 +184,15 @@ def _browse_games(page=None):
     
     return paginate(results, page, "_browse_games", "list.html", extra_content={"text": "All games"})
 
+@app.route("/games/models/<model>")
+@app.route("/games/models/<model>/page/<int:page>")
+def _games_models(model, page=None):
+    results = db.get_games_by_model(model)
+
+    if len(results) == 0:
+        return redirect(url_for("_vendors"))
+    
+    return paginate(results, page, "_games_models", "list.html", extra_content={"text": f"{model} games"}, url_args={"model": model})    
+
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=8080)

@@ -127,16 +127,16 @@ def _game():
     if resolution not in game["resolutions"]:
         return generate_error("Invalid resolution")
     
-    game["links"] = game["resolutions"][resolution]
+    game["files"] = game["resolutions"][resolution]
 
-    for model, files in game["links"].items():
+    for model, files in game["files"].items():
         for i, file in enumerate(files):
             if not file.get('filename'):
                 size = 0
             else:
                 path = os.path.join(current_app.static_folder, "files", file['filename'])
                 size = os.path.getsize(path) if os.path.isfile(path) else 0
-            game["links"][model][i]['size'] = utils.format_size(size)
+            game["files"][model][i]['size'] = utils.format_size(size)
 
     return game if game else generate_error("Non-existent parameter: id")
 

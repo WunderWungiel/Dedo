@@ -15,13 +15,13 @@
     	<div class="NHRY">{{ game['title'] }}</div>
         {% if game['splash'] is defined %}
         <div class="SPLASH"> 
-            <a href="/static/images/splashes/{{ game['splash']['filename'] }}"><img src="/static/images/splashes/{{ game['splash']['filename'] }}" alt="." width="130" height="130"/></a>
+            <a href="/static/images/splashes/{{ game['splash'] }}"><img src="/static/images/splashes/{{ game['splash'] }}" alt="." width="130" height="130"/></a>
         </div>
         {% endif %}
   
         {% if game['screenshot'] is defined %}
         <div class="SECSCR">
-            <a href="/static/images/screenshots/{{ game['screenshot']['filename'] }}" class="bluelink">[second screenshot]</a>
+            <a href="/static/images/screenshots/{{ game['screenshot'] }}" class="bluelink">[second screenshot]</a>
         </div>
         {% endif %}
   

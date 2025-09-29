@@ -12,7 +12,7 @@ def search(query):
 
     regex = re.compile(query, re.IGNORECASE)
 
-    results = games_collection.find({ "title": regex }, {"resolutions": 0}).to_list()
+    results = games_collection.find({ "title": regex }, {"resolutions": 0, "_id": 0}).to_list()
     results = [{**result, "date": result["date"].strftime("%d.%m.%Y")} for result in results]
     return results
 
@@ -24,6 +24,7 @@ def get_random_game(banner=None):
         pipeline.append({ "$match": { "banner": banner } })
 
     pipeline.append({ "$sample": { "size": 1 } })
+    pipeline.append({ "$unset": ["_id"] })
 
     results = games_collection.aggregate(pipeline).to_list()
     return results[0] if len(results) > 0 else None
@@ -36,30 +37,31 @@ def get_games(conditions=None, resolution=None, full_results=False):
 
     games_collection = get_collection("games")
 
-    return games_collection.find(conditions, {} if full_results else {"resolutions": 0}).to_list()
+    return games_collection.find(conditions, {"_id": 0} if full_results else {"resolutions": 0, "_id": 0})
 
 def get_game(id):
     games_collection = get_collection("games")
 
-    result = games_collection.find_one({ "id": id })
+    result = games_collection.find_one({ "id": id }, {"_id": 0})
+    if not result:
+        return None
     result['date'] = result['date'].strftime('%d.%m.%Y')
     return result
 
 def get_top_games(limit=50):
     games_collection = get_collection("games")
 
-    results = games_collection.find({}, {"resolutions": 0}).sort("downloads", -1).limit(limit).to_list()
+    results = games_collection.find({}, {"resolutions": 0, "_id": 0}).sort("downloads", -1).limit(limit).to_list()
     return results
 
 def get_latest_games(limit=15):
     games_collection = get_collection("games")
 
-    results = games_collection.find({}, {"resolutions": 0}).sort("id", -1).limit(limit).to_list()
+    results = games_collection.find({}, {"resolutions": 0, "_id": 0}).sort("id", -1).limit(limit).to_list()
     return results
 
 def get_vendors():
     games_collection = get_collection("games")
-
     results = games_collection.find({}, {"_id": 0, "vendor": 1}).to_list()
 
     vendors = [result["vendor"] for result in results]

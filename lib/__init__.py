@@ -3,3 +3,5 @@ import pymongo
 from .config import config
 
 client = pymongo.MongoClient(config["mongodb_uri"])
+
+from .api import api as api_blueprint

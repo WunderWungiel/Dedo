@@ -3,11 +3,14 @@ import math
 
 from flask import Flask, redirect, render_template, url_for, send_from_directory, request
 
-from lib import config, db
+from lib import config, db, utils
+from lib import api_blueprint
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 app.config['secret_key'] = config["secret_key"]
+
+app.register_blueprint(api_blueprint)
 
 if config["proxy"]:
     from werkzeug.middleware.proxy_fix import ProxyFix
@@ -15,32 +18,22 @@ if config["proxy"]:
         app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
     )
 
-def format_size(size_bytes, decimals=2):
+def paginate(collection, conditions, page, base_url, template, projection=None, extra_content=None, url_args=None, per_page=None):
 
-    if size_bytes == 0:
-        return "0 bytes"
-    
-    power = 1024
-    units = ["bytes", "KB", "MB", "GB", "TB", "PB"]
-
-    i = int(math.floor(math.log(size_bytes, power)))
-    size = size_bytes / (power ** i)
-    return f"{int(size)} {units[i]}" if size.is_integer() else f"{size_bytes / (power ** i):.{decimals}f} {units[i]}"
-
-def paginate(results, page, base_url, template, extra_content=None, url_args=None):
-
+    per_page = per_page or config['per_page']
     if not page or page < 1:
         return redirect(url_for(base_url, page=1, **(url_args or {})))
-    
-    total_pages = math.ceil(len(results) / config["per_page"])
+
+    total_results = collection.count_documents(conditions)
+    total_pages = math.ceil(total_results / per_page)
 
     if page > total_pages:
         return redirect(url_for(base_url, page=1, **(url_args or {})))
     
-    paged_results = results[(page - 1) * config["per_page"] : page * config["per_page"]]
+    results = collection.find(conditions, projection or {}).skip((page - 1) * per_page).limit(per_page)
 
     context = {
-        "results": paged_results,
+        "results": results,
         "page": page,
         "total_pages": total_pages,
         "url": url_for(base_url, **(url_args or {}))
@@ -85,7 +78,7 @@ def _game_resolution(id, resolution=None):
                 else:
                     path = os.path.join("static", "files", file['filename'])
                     size = os.path.getsize(path) if os.path.isfile(path) else 0
-                game['resolutions'][temp_resolution][model][i]['size'] = format_size(size)
+                game['resolutions'][temp_resolution][model][i]['size'] = utils.format_size(size)
 
     return render_template("game.html", game=game, resolution=resolution)
 

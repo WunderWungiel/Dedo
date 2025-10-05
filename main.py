@@ -18,22 +18,20 @@ if config["proxy"]:
         app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
     )
 
-def paginate(collection, conditions, page, base_url, template, projection=None, extra_content=None, url_args=None, per_page=None):
+def paginate(results, page, base_url, template, extra_content=None, url_args=None):
 
-    per_page = per_page or config['per_page']
     if not page or page < 1:
         return redirect(url_for(base_url, page=1, **(url_args or {})))
-
-    total_results = collection.count_documents(conditions)
-    total_pages = math.ceil(total_results / per_page)
+    
+    total_pages = math.ceil(len(results) / config["per_page"])
 
     if page > total_pages:
         return redirect(url_for(base_url, page=1, **(url_args or {})))
     
-    results = collection.find(conditions, projection or {}).skip((page - 1) * per_page).limit(per_page)
+    paged_results = results[(page - 1) * config["per_page"] : page * config["per_page"]]
 
     context = {
-        "results": results,
+        "results": paged_results,
         "page": page,
         "total_pages": total_pages,
         "url": url_for(base_url, **(url_args or {}))

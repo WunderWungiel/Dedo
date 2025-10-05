@@ -25,7 +25,7 @@ def _resolution():
     
     body = {}
 
-    results = list(db.get_games(resolution=resolution))
+    results = db.get_games(resolution=resolution)
 
     if len(results) == 0:
         body["results"] = []
@@ -62,7 +62,7 @@ def _vendor():
     
     body = {}
 
-    results = list(db.get_games({"vendor": vendor}))
+    results = db.get_games({"vendor": vendor})
 
     if len(results) == 0:
         body["results"] = []

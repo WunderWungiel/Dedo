@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 
 from . import client
 
@@ -37,7 +36,7 @@ def get_games(conditions=None, resolution=None, full_results=False):
 
     games_collection = get_collection("games")
 
-    return games_collection.find(conditions, {"_id": 0} if full_results else {"resolutions": 0, "_id": 0})
+    return games_collection.find(conditions, {"_id": 0} if full_results else {"resolutions": 0, "_id": 0}).to_list()
 
 def get_game(id):
     games_collection = get_collection("games")

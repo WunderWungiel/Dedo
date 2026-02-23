@@ -45,25 +45,26 @@ def paginate(results, page, base_url, template, extra_content=None, url_args=Non
 
 if not config['allow_indexing']:
     @app.route("/robots.txt")
-    def _robots():
+    def robots():
         return send_from_directory(app.static_folder, "robots.txt")
 
 @app.route("/")
-def _root():
-    return redirect(url_for('_games'))
+def root():
+    return redirect(url_for('games'))
 
 @app.route("/games")
-def _games():
+def games():
+    print(db.get_random_game(banner=True))
     return render_template("index.html", random_game=db.get_random_game(banner=True))
 
 @app.route("/games/<int:id>/screens")
-def _game_resolutions(id):
+def game_resolutions(id):
     
     return render_template("resolutions.html", game=db.get_game(id))
 
 @app.route("/games/<int:id>")
 @app.route("/games/<int:id>/screen/<resolution>")
-def _game_resolution(id, resolution=None):
+def game_resolution(id, resolution=None):
     
     game = db.get_game(id)
 
@@ -82,30 +83,30 @@ def _game_resolution(id, resolution=None):
     return render_template("game.html", game=game, resolution=resolution)
 
 @app.route("/games/search", methods=['GET', 'POST'])
-def _search():
+def search():
     if request.method == 'GET':
         return render_template("search.html", text=request.args.get('text'))
     elif request.method == 'POST':
         if not request.form.get('q'):
-            return redirect(url_for('_root'))
+            return redirect(url_for('root'))
 
-        return redirect(url_for('_search_query', query=request.form.get('q'), page=1))
+        return redirect(url_for('search_query', query=request.form.get('q'), page=1))
 
 @app.route("/games/search/<query>/page/<int:page>")
-def _search_query(query, page):
+def search_query(query, page):
 
     if page < 1:
-        return redirect(url_for('_search'))
+        return redirect(url_for('search'))
 
     results = db.search(query)
 
     if len(results) == 0:
-        return redirect(url_for('_search', text="No matches found!"))
+        return redirect(url_for('search', text="No matches found!"))
 
     total_pages = math.ceil(len(results) / config['per_page'])
 
     if page > total_pages:
-        return redirect(url_for('_search'))
+        return redirect(url_for('search'))
     
     paged_results = results[(page - 1) * config['per_page'] : page * config['per_page']]
 
@@ -113,16 +114,16 @@ def _search_query(query, page):
 
 @app.route("/games/top")
 @app.route("/games/top/page/<int:page>")
-def _top_games(page=None):
+def top_games(page=None):
     results = db.get_top_games(50)
 
     if len(results) == 0:
-        return redirect(url_for('_root'))
+        return redirect(url_for('root'))
     
-    return paginate(results, page, "_top_games", "list.html", {'text': "TOP 50 games"})
+    return paginate(results, page, 'top_games', "list.html", {'text': "TOP 50 games"})
 
 @app.route("/games/latest")
-def _latest_games():
+def latest_games():
     results = db.get_top_games(15)
     return render_template(
         "list.html",
@@ -135,57 +136,57 @@ def _latest_games():
 
 @app.route("/games/vendors")
 @app.route("/games/vendors/page/<int:page>")
-def _vendors(page=None):
+def vendors(page=None):
     results = db.get_vendors()
 
     if len(results) == 0:
-        return redirect(url_for('_root'))
+        return redirect(url_for('root'))
     
-    return paginate(results, page, "_vendors", "vendors.html")
+    return paginate(results, page, 'vendors', "vendors.html")
 
 @app.route("/games/vendor/<vendor>")
 @app.route("/games/vendor/<vendor>/page/<int:page>")
-def _vendor_games(vendor, page=None):
+def vendor_games(vendor, page=None):
     results = db.get_games({'vendor': vendor})
 
     if len(results) == 0:
-        return redirect(url_for('_vendors'))
+        return redirect(url_for('vendors'))
 
-    return paginate(results, page, "_vendor_games", "list.html", extra_content={'text': vendor}, url_args={'vendor': vendor})
+    return paginate(results, page, 'vendor_games', "list.html", extra_content={'text': vendor}, url_args={'vendor': vendor})
 
 @app.route("/games/screens")
-def _games_resolutions():
+def games_resolutions():
     return render_template("resolutions_list.html", resolutions=db.get_resolutions())
 
 @app.route("/games/screen/<resolution>")
 @app.route("/games/screen/<resolution>/page/<int:page>")
-def _resolution_games(resolution, page=None):
+def resolution_games(resolution, page=None):
     results = db.get_games(resolution=resolution)
 
     if len(results) == 0:
-        return redirect(url_for('_games_resolutions'))
+        return redirect(url_for('games_resolutions'))
     
-    return paginate(results, page, "_resolution_games", "list.html", extra_content={'text': f"{resolution} games"}, url_args={'resolution': resolution})
+    return paginate(results, page, 'resolution_games', "list.html", extra_content={'text': f"{resolution} games"}, url_args={'resolution': resolution})
 
 @app.route("/games/browse")
 @app.route("/games/browse/page/<int:page>")
-def _browse_games(page=None):
+def browse_games(page=None):
     results = db.get_games()
 
     if len(results) == 0:
-        return redirect(url_for('_root'))
+        return redirect(url_for('root'))
     
-    return paginate(results, page, "_browse_games", "list.html", extra_content={'text': "All games"})
+    return paginate(results, page, 'browse_games', "list.html", extra_content={'text': "All games"})
 
 @app.route("/games/models/<model>")
 @app.route("/games/models/<model>/page/<int:page>")
-def _games_models(model, page=None):
+def games_models(model, page=None):
     results = db.get_games_by_model(model)
 
     if len(results) == 0:
-        return redirect(url_for('_vendors'))
+        return redirect(url_for('vendors'))
     
-    return paginate(results, page, "_games_models", "list.html", extra_content={'text': f"{model} games"}, url_args={'model': model})    
+    return paginate(results, page, 'games_models', "list.html", extra_content={'text': f"{model} games"}, url_args={'model': model})    
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=8080)

@@ -14,7 +14,7 @@ def generate_error(content):
     }
 
 @api.route("/resolution")
-def _resolution():
+def resolution():
     page = request.args.get('page', type=int)
 
     if not page or page < 1:
@@ -48,11 +48,11 @@ def _resolution():
     return body
 
 @api.route("/resolutions/")
-def _resolutions():
+def resolutions():
     return db.get_resolutions()
 
 @api.route("/vendor/")
-def _vendor():
+def vendor():
     page = request.args.get('page')
     if not page or not page.isnumeric() or int(page) < 1:
         return generate_error("Invalid page")
@@ -85,7 +85,7 @@ def _vendor():
     return body
 
 @api.route("/vendors/")
-def _vendors():
+def vendors():
     page = request.args.get('page')
     if not page or not page.isnumeric() or int(page) < 1:
         return generate_error("Invalid page")
@@ -114,7 +114,7 @@ def _vendors():
     return body
 
 @api.route("/game/")
-def _game():
+def game():
     
     id = request.args.get('id')
     if not id or not id.isnumeric():
@@ -143,7 +143,7 @@ def _game():
     return game if game else generate_error("Non-existent parameter: id")
 
 @api.route("/game/resolutions/")
-def _game_resolutions():
+def game_resolutions():
     id = request.args.get('id')
     if not id or not id.isnumeric():
         return generate_error("Invalid parameter: id")
@@ -153,7 +153,7 @@ def _game_resolutions():
     return list(game['resolutions']) if game and game.get('resolutions') else []
 
 @api.route("/search/")
-def _search():
+def search():
 
     query = request.args.get('q')
     if not query:

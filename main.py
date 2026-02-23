@@ -19,17 +19,21 @@ if config['proxy']:
 
 app.register_blueprint(api_blueprint)
 
-def paginate(results, page, base_url, template, extra_content=None, url_args=None):
+def paginate(results, page, base_url, template, extra_content=None, url_args=None, total_count=None):
 
     if not page or page < 1:
         return redirect(url_for(base_url, page=1, **(url_args or {})))
     
-    total_pages = math.ceil(len(results) / config['per_page'])
+    if total_count is None:
+        total_pages = math.ceil(len(results) / config['per_page'])
+    else:
+        total_pages = math.ceil(total_count / config['per_page'])
 
     if page > total_pages:
         return redirect(url_for(base_url, page=1, **(url_args or {})))
     
-    paged_results = results[(page - 1) * config['per_page'] : page * config['per_page']]
+    # if total_count provided, results is already paged by database
+    paged_results = results if total_count is not None else results[(page - 1) * config['per_page'] : page * config['per_page']]
 
     context = {
         'results': paged_results,
@@ -147,12 +151,13 @@ def vendors(page=None):
 @app.route("/games/vendor/<vendor>")
 @app.route("/games/vendor/<vendor>/page/<int:page>")
 def vendor_games(vendor, page=None):
-    results = db.get_games({'vendor': vendor})
+    page = page or 1
+    results, total = db.get_games(conditions={'vendor': vendor}, page=page, return_count=True)
 
-    if len(results) == 0:
+    if total == 0:
         return redirect(url_for('vendors'))
 
-    return paginate(results, page, 'vendor_games', "list.html", extra_content={'text': vendor}, url_args={'vendor': vendor})
+    return paginate(results, page, 'vendor_games', "list.html", extra_content={'text': vendor}, url_args={'vendor': vendor}, total_count=total)
 
 @app.route("/games/screens")
 def games_resolutions():
@@ -161,22 +166,24 @@ def games_resolutions():
 @app.route("/games/screen/<resolution>")
 @app.route("/games/screen/<resolution>/page/<int:page>")
 def resolution_games(resolution, page=None):
-    results = db.get_games(resolution=resolution)
+    page = page or 1
+    results, total = db.get_games(resolution=resolution, page=page, return_count=True)
 
-    if len(results) == 0:
+    if total == 0:
         return redirect(url_for('games_resolutions'))
     
-    return paginate(results, page, 'resolution_games', "list.html", extra_content={'text': f"{resolution} games"}, url_args={'resolution': resolution})
+    return paginate(results, page, 'resolution_games', "list.html", extra_content={'text': f"{resolution} games"}, url_args={'resolution': resolution}, total_count=total)
 
 @app.route("/games/browse")
 @app.route("/games/browse/page/<int:page>")
 def browse_games(page=None):
-    results = db.get_games()
+    page = page or 1
+    results, total = db.get_games(page=page, return_count=True)
 
-    if len(results) == 0:
+    if total == 0:
         return redirect(url_for('root'))
     
-    return paginate(results, page, 'browse_games', "list.html", extra_content={'text': "All games"})
+    return paginate(results, page, 'browse_games', "list.html", extra_content={'text': "All games"}, total_count=total)
 
 @app.route("/games/models/<model>")
 @app.route("/games/models/<model>/page/<int:page>")
@@ -189,4 +196,4 @@ def games_models(model, page=None):
     return paginate(results, page, 'games_models', "list.html", extra_content={'text': f"{model} games"}, url_args={'model': model})    
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=8080)
+    app.run(debug=True, host='0.0.0.0', port=8000)

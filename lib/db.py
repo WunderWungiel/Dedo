@@ -31,15 +31,32 @@ def get_random_game(banner=None):
     results = games_collection.aggregate(pipeline).to_list()
     return results[0] if len(results) > 0 else None
 
-def get_games(conditions=None, resolution=None, full_results=False):
+def get_games(conditions=None, resolution=None, full_results=False, page=None, return_count=False):
 
     conditions = conditions or {}
+
     if resolution:
-        conditions[f"resolutions.{resolution}"] = {"$exists": True}
+        conditions[f'resolutions.{resolution}'] = {'$exists': True}
 
-    games_collection = get_collection("games")
+    games_collection = get_collection('games')
 
-    return games_collection.find(conditions, {'_id': 0} if full_results else {'resolutions': 0, '_id': 0}).to_list()
+    projection = {'_id': 0}
+    if not full_results:
+        projection['resolutions'] = 0
+
+    cursor = games_collection.find(conditions, projection)
+
+    if page is not None:
+        skip = (page - 1) * config['per_page']
+        cursor = cursor.skip(skip).limit(config['per_page'])
+
+    results = cursor.to_list()
+
+    if return_count:
+        total = games_collection.count_documents(conditions)
+        return results, total
+
+    return results
 
 def get_game(id):
     games_collection = get_collection("games")

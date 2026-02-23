@@ -27,23 +27,22 @@ def resolution():
     
     body = {}
 
-    results = db.get_games(resolution=resolution)
+    results, total = db.get_games(resolution=resolution, page=page or 1, return_count=True)
 
-    if len(results) == 0:
+    if total == 0:
         body['results'] = []
         body['total_pages'] = 0
         body['count'] = 0
         return body
 
-    total_pages = math.ceil(len(results) / config['per_page'])
+    total_pages = math.ceil(total / config['per_page'])
 
     if page > total_pages:
         return redirect(url_for('._resolution', page=1))
     
-    paged_results = results[(page - 1) * config['per_page'] : page * config['per_page']]
-    body['results'] = list(paged_results)
+    body['results'] = list(results)
     body['total_pages'] = total_pages
-    body['count'] = len(results)
+    body['count'] = total
 
     return body
 
@@ -64,23 +63,22 @@ def vendor():
     
     body = {}
 
-    results = db.get_games({'vendor': vendor})
+    results, total = db.get_games(conditions={'vendor': vendor}, page=page, return_count=True)
 
-    if len(results) == 0:
+    if total == 0:
         body['results'] = []
         body['total_pages'] = 0
         body['count'] = 0
         return body
 
-    total_pages = math.ceil(len(results) / config['per_page'])
+    total_pages = math.ceil(total / config['per_page'])
 
     if page > total_pages:
         return redirect(url_for('._vendor', page=1))
     
-    paged_results = results[(page - 1) * config['per_page'] : page * config['per_page']]
-    body['results'] = list(paged_results)
+    body['results'] = list(results)
     body['total_pages'] = total_pages
-    body['count'] = len(results)
+    body['count'] = total
 
     return body
 

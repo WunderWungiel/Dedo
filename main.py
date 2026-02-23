@@ -2,21 +2,22 @@ import os
 import math
 
 from flask import Flask, redirect, render_template, url_for, send_from_directory, request
+import humanize
 
-from lib import config, db, utils
+from lib import config, db
 from lib import api_blueprint
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
-app.config['secret_key'] = config["secret_key"]
+app.config['SECRET_KEY'] = config['secret_key']
 
-app.register_blueprint(api_blueprint)
-
-if config["proxy"]:
+if config['proxy']:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(
         app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
     )
+
+app.register_blueprint(api_blueprint)
 
 def paginate(results, page, base_url, template, extra_content=None, url_args=None):
 
@@ -76,7 +77,7 @@ def _game_resolution(id, resolution=None):
                 else:
                     path = os.path.join("static", "files", file['filename'])
                     size = os.path.getsize(path) if os.path.isfile(path) else 0
-                game['resolutions'][temp_resolution][model][i]['size'] = utils.format_size(size)
+                game['resolutions'][temp_resolution][model][i]['size'] = humanize.naturalsize(size)
 
     return render_template("game.html", game=game, resolution=resolution)
 
@@ -97,6 +98,7 @@ def _search_query(query, page):
         return redirect(url_for("_search"))
 
     results = db.search(query)
+
     if len(results) == 0:
         return redirect(url_for("_search", text="No matches found!"))
 

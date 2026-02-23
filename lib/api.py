@@ -2,8 +2,9 @@ import math
 import os
 
 from flask import Blueprint, request, redirect, url_for, current_app
+import humanize
 
-from . import config, db, utils
+from . import config, db
 
 api = Blueprint("api", __name__, template_folder="templates", url_prefix=config["api_prefix"])
 
@@ -12,14 +13,15 @@ def generate_error(content):
         "error": content
     }
 
-@api.route("/resolution/")
+@api.route("/resolution")
 def _resolution():
-    page = request.args.get("page")
-    if not page or not page.isnumeric() or int(page) < 1:
-        return generate_error("Invalid page")
-    page = int(page)
+    page = request.args.get('page', type=int)
 
-    resolution = request.args.get("name")
+    if not page or page < 1:
+        return generate_error("Invalid page")
+    
+    resolution = request.args.get('name')
+
     if not resolution:
         return generate_error("Missing parameter: name")
     
@@ -28,9 +30,9 @@ def _resolution():
     results = db.get_games(resolution=resolution)
 
     if len(results) == 0:
-        body["results"] = []
-        body["total_pages"] = 0
-        body["count"] = 0
+        body['results'] = []
+        body['total_pages'] = 0
+        body['count'] = 0
         return body
 
     total_pages = math.ceil(len(results) / config["per_page"])
@@ -136,7 +138,7 @@ def _game():
             else:
                 path = os.path.join(current_app.static_folder, "files", file['filename'])
                 size = os.path.getsize(path) if os.path.isfile(path) else 0
-            game["files"][model][i]['size'] = utils.format_size(size)
+            game["files"][model][i]['size'] = humanize.naturalsize(size)
 
     return game if game else generate_error("Non-existent parameter: id")
 

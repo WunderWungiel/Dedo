@@ -204,6 +204,10 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# VS Code
+
+.vscode
+
 # Project-specific
 
 config.yml

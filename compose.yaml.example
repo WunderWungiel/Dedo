@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    container_name: dedofoss
+    restart: unless-stopped
+    volumes:
+      - /var/www/dedo.wunderwungiel.pl/html/static/files:/app/static/files
+      - ./app/static/images/banners:/app/static/images/banners
+      - ./app/static/images/screenshots:/app/static/images/screenshots
+      - ./app/static/images/splashes:/app/static/images/splashes
+    ports:
+      - 8080:80
+    depends_on:
+      - db
+
+  db:
+    image: mongo:latest
+    container_name: dedofoss-db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    restart: unless-stopped
+    volumes:
+      - ./mongo-config:/data/db
+      - ./db:/docker-entrypoint-initdb.d

@@ -215,3 +215,9 @@ app/static/images/banners/*
 app/static/images/screenshots/*
 app/static/images/splashes/*
 app/static/files/*
+
+# User Compose file
+compose.yaml
+
+# MongoDB configuration
+mongodb-config

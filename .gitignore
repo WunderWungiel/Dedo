@@ -212,9 +212,13 @@ __marimo__/
 
 config.yml
 app/static/images/banners/*
+!app/static/images/banners/.gitkeep
 app/static/images/screenshots/*
+!app/static/images/screenshots/.gitkeep
 app/static/images/splashes/*
+!app/static/images/splashes/.gitkeep
 app/static/files/*
+!app/static/files/.gitkeep
 
 # User Compose file
 compose.yaml

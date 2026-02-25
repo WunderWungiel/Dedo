@@ -211,14 +211,14 @@ __marimo__/
 # Project-specific
 
 config.yml
-app/static/images/banners/*
-!app/static/images/banners/.gitkeep
-app/static/images/screenshots/*
-!app/static/images/screenshots/.gitkeep
-app/static/images/splashes/*
-!app/static/images/splashes/.gitkeep
-app/static/files/*
-!app/static/files/.gitkeep
+app/static/content/images/banners/*
+!app/static/content/images/banners/.gitkeep
+app/static/content/images/screenshots/*
+!app/static/content/images/screenshots/.gitkeep
+app/static/content/images/splashes/*
+!app/static/content/images/splashes/.gitkeep
+app/static/content/files/*
+!app/static/content/files/.gitkeep
 
 # User Compose file
 compose.yaml

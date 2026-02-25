@@ -127,23 +127,3 @@ def get_resolutions():
         keys = []
 
     return sorted(keys)
-
-def get_games_by_model(model_query, page=None, return_count=None):
-
-    results = []
-
-    games = get_games(full_results=True)
-    
-    for game in games:
-        found = False
-        for resolution in game['resolutions']:
-            for model in game['resolutions'][resolution].keys():
-                if model_query.lower() in model.lower():
-                    found = True
-                    break
-            if found:
-                break
-        if found:
-            results.append(game)
-
-    return results

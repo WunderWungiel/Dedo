@@ -246,16 +246,5 @@ def browse_games(page=None):
     
     return render_template("list.html", endpoint=request.endpoint, results=results, text="All games", pages=pages)
 
-@app.route("/games/models/<model>")
-@app.route("/games/models/<model>/page/<int:page>")
-def games_models(model, page=None):
-
-    results = db.get_games_by_model(model)
-
-    if not results:
-        return redirect(url_for('vendors'))
-    
-    return paginate(results, page, 'games_models', "list.html", extra_content={'text': f"{model} games"}, url_args={'model': model})    
-
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=8000)

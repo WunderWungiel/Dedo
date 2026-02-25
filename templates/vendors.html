@@ -20,19 +20,19 @@
 
         <div class="info_NHIER" style="margin-top: 7px">* Vendor isn't not same like developer!</div>
 
-        {% if total_pages > 1 %}
+        {% if pages['total'] > 1 %}
         
         <div class="PAGES" style="margin-top: 7px; margin-bottom: -6px;">
-            {% if page > 1 %}
-            <a href="/games/vendors/page/1" class="PAGES2">&#171;&#171;</a> | 
-            <a href="/games/vendors/page/{{ page - 1 }}" class="PAGES2">&#171;prev</a>
+            {% if pages['current'] > 1 %}
+            <a href="{{ url_for('vendors', page=pages['first']) }}" class="PAGES2">&#171;&#171;</a> | 
+            <a href="{{ url_for('vendors', page=pages['previous']) }}" class="PAGES2">&#171;prev</a>
             {% endif %}
-            {% if page > 1 and page < total_pages %}
+            {% if pages['current'] > pages['first'] and pages['current'] < pages['last'] %}
             |
             {% endif %}
-            {% if page != total_pages %}
-            <a href="/games/vendors/page/{{ page + 1 }}" class="PAGES2">next&#x00BB;</a> |
-            <a href="/games/vendors/page/{{ total_pages }}" class="PAGES2">&#x00BB;&#x00BB;</a>
+            {% if pages['current'] != pages['last'] %}
+            <a href="{{ url_for('vendors', page=pages['next']) }}" class="PAGES2">next&#x00BB;</a> |
+            <a href="{{ url_for('vendors', page=pages['last']) }}" class="PAGES2">&#x00BB;&#x00BB;</a>
             {% endif %}
         </div>
 

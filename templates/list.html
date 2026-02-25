@@ -23,19 +23,19 @@
         </div>
         {% endfor %}
 
-        {% if total_pages > 1 %}
+        {% if pages['total'] > 1 %}
         
         <div class="PAGES" style="margin-top: 7px; margin-bottom: -6px;">
-            {% if page > 1 %}
-            <a href="{{ url }}/page/1" class="PAGES2">&#171;&#171;</a> | 
-            <a href="{{ url }}/page/{{ page - 1 }}" class="PAGES2">&#171;prev</a>
+            {% if pages['current'] > 1 %}
+            <a href="{{ url_for(endpoint, page=pages['first'], **(url_args or {})) }}" class="PAGES2">&#171;&#171;</a> | 
+            <a href="{{ url_for(endpoint, page=pages['previous'], **(url_args or {})) }}" class="PAGES2">&#171;prev</a>
             {% endif %}
-            {% if page > 1 and page < total_pages %}
+            {% if pages['current'] > pages['first'] and pages['current'] < pages['last'] %}
             |
             {% endif %}
-            {% if page != total_pages %}
-            <a href="{{ url }}/page/{{ page + 1 }}" class="PAGES2">next&#x00BB;</a> |
-            <a href="{{ url }}/page/{{ total_pages }}" class="PAGES2">&#x00BB;&#x00BB;</a>
+            {% if pages['current'] != pages['last'] %}
+            <a href="{{ url_for(endpoint, page=pages['next'], **(url_args or {})) }}" class="PAGES2">next&#x00BB;</a> |
+            <a href="{{ url_for(endpoint, page=pages['last'], **(url_args or {})) }}" class="PAGES2">&#x00BB;&#x00BB;</a>
             {% endif %}
         </div>
 

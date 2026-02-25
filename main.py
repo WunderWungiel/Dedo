@@ -1,5 +1,6 @@
 import os
 import math
+from datetime import datetime
 
 from flask import Flask, redirect, render_template, url_for, send_from_directory, request
 import humanize
@@ -29,10 +30,11 @@ def generate_pages(page, total_pages):
         'total': total_pages
     }
 
-if not config['allow_indexing']:
-    @app.route("/robots.txt")
-    def robots():
-        return send_from_directory(app.static_folder, "robots.txt")
+@app.context_processor
+def utility_processor():
+    return dict(
+        now=datetime.now()
+    )
 
 @app.route("/")
 def root():
@@ -245,6 +247,11 @@ def browse_games(page=None):
     pages = generate_pages(page, total_pages)
     
     return render_template("list.html", endpoint=request.endpoint, results=results, text="All games", pages=pages)
+
+if not config['allow_indexing']:
+    @app.route("/robots.txt")
+    def robots():
+        return send_from_directory(app.static_folder, "robots.txt")
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=8000)

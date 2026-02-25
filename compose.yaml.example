@@ -4,7 +4,7 @@ services:
     container_name: dedofoss
     restart: unless-stopped
     volumes:
-      - ./content:/app/static/content:ro # Replace
+      - ./content:/app/static/content:ro # Replace. Remove read-only if mounting another volume on top
     ports:
       - 8080:80
     depends_on:

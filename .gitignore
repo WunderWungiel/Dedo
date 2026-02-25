@@ -211,7 +211,7 @@ __marimo__/
 # Project-specific
 
 config.yml
-static/images/banners/*
-static/images/screenshots/*
-static/images/splashes/*
-static/files/*
+app/static/images/banners/*
+app/static/images/screenshots/*
+app/static/images/splashes/*
+app/static/files/*

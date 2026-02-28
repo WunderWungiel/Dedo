@@ -68,7 +68,7 @@ def game_resolution(id, resolution=None):
                 if not file.get('filename'):
                     size = 0
                 else:
-                    path = os.path.join("static", "files", file['filename'])
+                    path = os.path.join("static", "content" "files", file['filename'])
                     size = os.path.getsize(path) if os.path.isfile(path) else 0
                 game['resolutions'][temp_resolution][model][i]['size'] = humanize.naturalsize(size)
 

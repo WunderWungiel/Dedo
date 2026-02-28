@@ -134,7 +134,7 @@ def game():
             if not file.get('filename'):
                 size = 0
             else:
-                path = os.path.join(current_app.static_folder, "files", file['filename'])
+                path = os.path.join(current_app.static_folder, "content", "files", file['filename'])
                 size = os.path.getsize(path) if os.path.isfile(path) else 0
             game['files'][model][i]['size'] = humanize.naturalsize(size)
 

@@ -66,7 +66,7 @@ def get_games(conditions=None, sort=None, limit=None, resolution=None, full_resu
     cursor = games_collection.find(conditions, projection)
 
     if sort is not None:
-        cursor = cursor.sort({sort: -1})
+        cursor = cursor.sort(sort, -1)
 
     if limit is not None:
         cursor = cursor.limit(limit)

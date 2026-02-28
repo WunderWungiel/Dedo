@@ -3,8 +3,8 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
         <title>Download {{ game['title'] }} {{ resolution }} game</title>
-        <link rel="stylesheet" href="/static/css/style.css" type="text/css" />
-        <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" type="text/css" />
+        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
         <meta name="viewport" content="width=device-width, user-scalable=no" />
         <meta http-equiv="Content-Style-Type" content="text/css" charset="utf-8" />
         <meta http-equiv="Cache-Control" content="must-revalidate"/>
@@ -15,22 +15,22 @@
     	<div class="NHRY">{{ game['title'] }}</div>
         {% if game['splash'] is defined %}
         <div class="SPLASH"> 
-            <a href="/static/content/images/splashes/{{ game['splash'] }}"><img src="/static/content/images/splashes/{{ game['splash'] }}" alt="." width="130" height="130"/></a>
+            <a href="{{ url_for('static', filename='content/images/splashes/' ~ game['splash']) }}"><img src="{{ url_for('static', filename='content/images/splashes/' ~ game['splash']) }}" alt="." width="130" height="130"/></a>
         </div>
         {% endif %}
   
         {% if game['screenshot'] is defined %}
         <div class="SECSCR">
-            <a href="/static/content/images/screenshots/{{ game['screenshot'] }}" class="bluelink">[second screenshot]</a>
+            <a href="{{ url_for('static', filename='content/images/screenshots/' ~ game['screenshot']) }}" class="bluelink">[second screenshot]</a>
         </div>
         {% endif %}
   
-        <div class="OPIS"><img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Added</b>: {{ game['date'] }}<br/></div>
-        <div class="OPIS"><img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Downloads</b>: {{ game['downloads'] }}123446</div>
-        <div class="OPIS"><img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Vendor</b>: {{ game['vendor'] }}</div>
+        <div class="OPIS"><img src="{{ url_for('static', filename='images/arrow-red.gif') }}" alt="." class="icon_img"/> <b>Added</b>: {{ game['date'] }}<br/></div>
+        <div class="OPIS"><img src="{{ url_for('static', filename='images/arrow-red.gif') }}" alt="." class="icon_img"/> <b>Downloads</b>: {{ game['downloads'] }}</div>
+        <div class="OPIS"><img src="{{ url_for('static', filename='images/arrow-red.gif') }}" alt="." class="icon_img"/> <b>Vendor</b>: {{ game['vendor'] }}</div>
 
         <div style="margin-bottom: 15px; margin-left: 5px; font-family: Times New Roman; font-size: small; color: #000033">
-            <img src="/static/images/arrow-red.gif" alt="." class="icon_img"/> <b>Description</b>: {{ game['description'] | replace('\n', '<br>') | safe }}
+            <img src="{{ url_for('static', filename='images/arrow-red.gif') }}" alt="." class="icon_img"/> <b>Description</b>: {{ game['description'] | replace('\n', '<br>') | safe }}
         </div>
   
         {% set resolutions_to_use = [resolution] if resolution else game['resolutions'].keys() %}
@@ -39,14 +39,14 @@
         {% for model, files in game['resolutions'][resolution].items() %}
 
         <div class="MODELS">
-            <img src="/static/images/arrow-black.gif" alt="." class="icon_img"/> {{ model }} (<b>{{ resolution }}</b>)
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/> {{ model }} (<b>{{ resolution }}</b>)
         </div>
 
         <div class="LOAD">
-            <img src="/static/images/arrow-black.gif" alt="." class="icon_img"/>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/>
                 {% for file in files %}
                 {% if file['filename'] is defined %}
-                <a href="/static/files/{{ file['filename'] }}" class="bluelink">
+                <a href="{{ url_for('static', filename='content/files/' ~ file['filename']) }}" class="bluelink">
                 {% else %}
                 <a href="#" class="bluelink">
                 {% endif %}
@@ -61,7 +61,7 @@
         {% endfor %}
 
         <div class="HLISTA" style="margin-top: 7px;">
-            <a href="/" class="bluelink">Home</a>
+            <a href="{{ url_for('root') }}" class="bluelink">Home</a>
         </div>
 
 	    <div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>

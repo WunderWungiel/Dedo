@@ -3,8 +3,8 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
         <title>Search</title>
-        <link rel="stylesheet" href="/static/css/style.css" type="text/css" />
-        <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" type="text/css" />
+        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
         <meta name="viewport" content="width=device-width, user-scalable=no" />
         <meta http-equiv="Content-Style-Type" content="text/css" charset="utf-8" />
         <meta http-equiv="Cache-Control" content="must-revalidate"/>
@@ -15,14 +15,14 @@
         <div class="NHRY">{% if text %} {{ text }} {% else %} At least 3 characters! {% endif %}</div>
     
         <div class="SEARCH">
-            <form action="/games/search" method="POST">
+            <form action="{{ url_for('search') }}" method="POST">
                 <input type="text" name="q" maxlength="25"/> 
             <input type="submit" value="Search"/>
             </form>
         </div>
 
         <div class="HLISTA" style="margin-top: 7px;">
-        <a href="/" class="bluelink">Home</a>
+        <a href="{{ url_for('root') }}" class="bluelink">Home</a>
         </div>
 
         <div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>

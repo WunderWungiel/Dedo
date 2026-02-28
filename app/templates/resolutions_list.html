@@ -4,8 +4,8 @@
 
     <head>
         <title>Resolutions</title>
-        <link rel="stylesheet" href="/static/css/style.css" type="text/css" />
-        <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" type="text/css" />
+        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
         <meta name="viewport" content="width=device-width, user-scalable=no" />
         <meta http-equiv="Content-Style-Type" content="text/css" charset="utf-8" />
         <meta http-equiv="Cache-Control" content="must-revalidate"/>
@@ -14,12 +14,12 @@
     <body>
         {% for resolution in resolutions %}
         <div class="GMENU">
-            <img src="/static/images/arrow-black.gif" alt="." class="icon_img"> <a href="/games/screen/{{ resolution }}/page/1" class="bluelink">{{ resolution }}</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"> <a href="{{ url_for('resolution_games', resolution=resolution) }}" class="bluelink">{{ resolution }}</a>
         </div>
         {% endfor %}
 
         <div class="HLISTA" style="margin-top: 7px;">
-            <a href="/" class="bluelink">Home</a>
+            <a href="{{ url_for('root') }}" class="bluelink">Home</a>
         </div>
 
       	<div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>

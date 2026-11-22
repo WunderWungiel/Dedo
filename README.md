@@ -73,8 +73,8 @@ Two files hold configuration; neither is in git and neither is in the image.
 application reads at startup:
 
 - `per_page` — games per page, a positive integer.
-- `allow_indexing` — `true` or `false`; controls the robots meta tag and
-  `/robots.txt`.
+- `allow_indexing` — `true` or `false`; when false, `/robots.txt` disallows all
+  crawlers, and when true the route is not registered.
 - `api_prefix` — URL prefix for the JSON API, normally `/api/v1`.
 - `content_dir` — directory with game files and images, relative to the repo
   root (default `content`).
@@ -102,14 +102,21 @@ is required; `MONGO_HOST` and `MONGO_PORT` default to `localhost` and `27017`;
 
 ## Maintenance
 
-Create or refresh the MongoDB indexes:
+Create or refresh the MongoDB indexes. The `indexes` service runs this on
+every `docker compose up`, and it can be run by hand through Compose:
+
+```bash
+docker compose run --rm indexes
+```
+
+Without Docker, use the same command from the repo root with the `MONGO_*`
+variables exported:
 
 ```bash
 flask --app dedo.app create-indexes
 ```
 
-The command is idempotent and lists the indexes it created. It also runs on
-every `docker compose up` through the `indexes` service.
+The command is idempotent and lists the indexes it created.
 
 The `db` container restores `db/dump` through `db/import.sh` only when the
 `mongo_data` volume is empty, on the first start. Later starts keep the
@@ -144,15 +151,27 @@ The example Compose file mounted a root `./content` directory over
 `/app/static/content`, so check where the real content lives before copying
 anything: `ls content` and `ls app/static/content`.
 
-1. Choose how to keep the database data. To keep the old bind mount, skip the
-   dump. To move the data into the new `mongo_data` volume, dump the old
-   database now, while the old stack is still running:
+1. Check the MongoDB version, then choose how to keep the data. The new stack
+   runs MongoDB 8.0 and cannot start on data files from 7.x or older. With the
+   old stack running:
+
+   ```bash
+   docker compose exec -T db mongosh --quiet --eval 'db.version()'
+   ```
+
+   If that is older than 8.0, use the dump/restore path in step 7; the old
+   bind mount cannot be kept. Dump the old database now, while the old stack
+   is still running (this is optional for an 8.0 server):
 
    ```bash
    docker compose exec -T db sh -c 'mongodump \
      -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
-     --authenticationDatabase admin --archive' > dedo.archive
+     --authenticationDatabase admin --db "$MONGO_INITDB_DATABASE" \
+     --archive' > dedo.archive
    ```
+
+   If the old stack was started with `-f compose.yaml.example`, add the same
+   option to the commands in this step and the next one.
 
 2. Stop the old stack:
 
@@ -209,8 +228,8 @@ anything: `ls content` and `ls app/static/content`.
    (`/static/content/...`), so no links change. The app container runs as UID
    1000, which only needs read access to `content/` and `config.yaml`.
 
-7. Keep the database data. With the old bind mount, add
-   `compose.override.yaml`:
+7. Keep the database data. If the old server was MongoDB 8.0, the old bind
+   mount can be reused by adding `compose.override.yaml`:
 
    ```yaml
    services:
@@ -219,11 +238,11 @@ anything: `ls content` and `ls app/static/content`.
          - ./mongo-config:/data/db
    ```
 
-   With the dump, start the new database and replace the shipped dump with
-   your archive:
+   With the dump, start the new database, wait for its health check, and
+   replace the shipped dump with your archive:
 
    ```bash
-   docker compose up -d db
+   docker compose up -d --wait db
    docker compose exec -T db sh -c 'mongorestore --drop \
      -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
      --authenticationDatabase admin --archive' < dedo.archive
@@ -242,7 +261,7 @@ anything: `ls content` and `ls app/static/content`.
    you only started the app container):
 
    ```bash
-   flask --app dedo.app create-indexes
+   docker compose run --rm indexes
    ```
 
 Once downloads and the site work, remove `app/`, `compose.old.yaml`,

@@ -1,7 +1,7 @@
 # Games shown on one page. Must be a positive integer.
 per_page: 10
 
-# Whether search engines may index the site. true or false.
+# When false, /robots.txt disallows all crawlers. true or false.
 allow_indexing: false
 
 # Prefix for the JSON API links.

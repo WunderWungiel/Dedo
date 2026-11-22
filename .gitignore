@@ -223,5 +223,10 @@ content/files/*
 # Local Compose overrides
 compose.override.yaml
 
+# Upgrade artifacts, created while moving from the old layout
+compose.old.yaml
+.env.old
+dedo.archive
+
 # Old MongoDB bind mount, kept by deployments upgrading from the old layout
 mongo-config

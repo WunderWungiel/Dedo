@@ -69,7 +69,7 @@ def _mongo_problems():
     for key in REQUIRED_MONGO_ENV:
         if not MONGO.get(key):
             problems.append(f"set the {MONGO_ENV[key]} environment variable")
-    port = MONGO.get('port')
+    port = (MONGO.get('port') or '').strip()
     if port and not _is_port(port):
         problems.append(
             f"{MONGO_ENV['port']} must be an ASCII decimal port in the range "
@@ -130,7 +130,7 @@ CONTENT_DIR = os.path.normpath(
 
 MONGO_DB = MONGO['db']
 MONGO_HOST = MONGO.get('host') or 'localhost'
-MONGO_PORT = MONGO.get('port') or '27017'
+MONGO_PORT = (MONGO.get('port') or '').strip() or '27017'
 MONGO_USER = MONGO.get('user') or ''
 MONGO_PASSWORD = MONGO.get('password') or ''
 

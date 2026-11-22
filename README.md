@@ -170,9 +170,12 @@ Compose file started MongoDB with the database named by
 `MONGO_INITDB_DATABASE`, but the old app connected with the `mongodb_uri` in
 `app/config.yml`. Those names can differ. Read the database name from the URI
 (the path after the host and port, before any `?`) and compare it with
-`MONGO_INITDB_DATABASE` in the old `.env` or Compose file. Keep the database
-the app used; if the names differ, set the new `MONGO_DB` to the app's name, or
-remap the archive as shown in step 7.
+`MONGO_INITDB_DATABASE` in the old `.env` or Compose file. If the running image
+was built earlier, read the config baked into it
+(`docker compose exec -T app cat config.yml`); a file edited after the build
+may not be what the app used. Keep the database the app used; if the names
+differ, set the new `MONGO_DB` to the app's name, or remap the archive as shown
+in step 7.
 
 The example Compose file mounted a root `./content` directory over
 `/app/static/content`, so check where the real content lives before copying
@@ -188,15 +191,25 @@ anything: `ls content` and `ls app/static/content`.
 
    If that is older than 8.0, use the dump/restore path in step 7; the old
    bind mount cannot be kept. Dump the old database now, while the old stack
-   is still running (this is optional for an 8.0 server). Set `OLD_DB` to the
-   live database name you found above:
+   is still running (this is optional for an 8.0 server). Replace the sample
+   value with the live database name you found above; do not keep `dedomil`
+   just because it is the bundled name:
 
    ```bash
-   OLD_DB=dedomil   # the database from the old app URI, not necessarily MONGO_INITDB_DATABASE
+   OLD_DB='replace-me-with-the-live-database-name'
    docker compose exec -T -e "DUMP_DB=$OLD_DB" db sh -c 'mongodump \
      -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
      --authenticationDatabase admin --db "$DUMP_DB" \
      --archive' > dedo.archive
+   ```
+
+   Print the live game count and write it down for step 8:
+
+   ```bash
+   docker compose exec -T -e "DUMP_DB=$OLD_DB" db sh -c 'mongosh --quiet \
+     -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
+     --authenticationDatabase admin \
+     --eval "print(db.getSiblingDB(\"$DUMP_DB\").games.countDocuments())"'
    ```
 
    If the old stack was started with `-f compose.yaml.example`, add the same
@@ -260,8 +273,10 @@ anything: `ls content` and `ls app/static/content`.
    (`/static/content/...`), so no links change. The app container runs as UID
    1000, which only needs read access to `content/` and `config.yaml`.
 
-7. Keep the database data. If the old server was MongoDB 8.0, the old bind
-   mount can be reused by adding `compose.override.yaml`:
+7. Keep the database data. Choose one of these paths.
+
+   If the old server was MongoDB 8.0, the old bind mount can be reused by
+   adding `compose.override.yaml`:
 
    ```yaml
    services:
@@ -270,15 +285,18 @@ anything: `ls content` and `ls app/static/content`.
          - ./mongo-config:/data/db
    ```
 
-   The archive keeps the namespace it was dumped from. The bundled
-   `db/import.sh` maps its own `dedomil.*` namespace into the database named by
-   `MONGO_DB`, but `mongorestore` does not do that for your archive: without
-   remapping it recreates the old database name. Remap the archive explicitly
-   when that name is not the new `MONGO_DB`:
+   Otherwise, or if you chose the dump, start the new database and restore
+   your archive. The archive keeps the namespace it was dumped from. The
+   bundled `db/import.sh` maps its own `dedomil.*` namespace into the database
+   named by `MONGO_DB`, but `mongorestore` does not do that for your archive:
+   without remapping it recreates the old database name. Set `OLD_DB` to the
+   same value as step 1 and remap it explicitly:
 
    ```bash
+   OLD_DB='replace-me-with-the-live-database-name'
    docker compose up -d --wait db
    docker compose exec -T -e "DUMP_DB=$OLD_DB" db sh -c 'mongorestore --drop \
+     --nsInclude="$DUMP_DB.*" \
      --nsFrom="$DUMP_DB.*" --nsTo="$MONGO_INITDB_DATABASE.*" \
      -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
      --authenticationDatabase admin --archive' < dedo.archive
@@ -294,6 +312,19 @@ anything: `ls content` and `ls app/static/content`.
    `app`, `proxy` and `db` must be healthy and `indexes` should have exited 0.
    The app waits for the index job, so a failed job stops startup; inspect it
    with `docker compose logs indexes`.
+
+   If you restored an archive in step 7, compare the restored game count with
+   the count from step 1; a wrong or non-matching namespace restores silently,
+   so the count is the check that catches it:
+
+   ```bash
+   docker compose exec -T db sh -c 'mongosh --quiet \
+     -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
+     --authenticationDatabase admin \
+     --eval "print(db.getSiblingDB(process.env.MONGO_INITDB_DATABASE).games.countDocuments())"'
+   ```
+
+   Do not continue until it matches the count you printed after the dump.
 
 9. The `indexes` service runs as a dependency of `app`, so a normal `up`
    creates or refreshes the indexes first. If you restored data after the

@@ -183,6 +183,17 @@ def check_config_validation():
         elif default.stdout.strip() != '27017':
             problems.append(f'{extra_env or "omitted"} MONGO_PORT defaulted to '
                             f'{default.stdout.strip()!r}, expected 27017')
+
+    padded = run_config(
+        {'MONGO_PORT': ' 27017 '},
+        expression='import dedo.config as c; print(c.MONGO_PORT); print(c.MONGO_URI)',
+    )
+    expected_uri = 'mongodb://localhost:27017/dedo_config_check'
+    if padded.returncode != 0:
+        problems.append(f'padded MONGO_PORT failed: {padded.stderr.strip()[-200:]}')
+    elif padded.stdout.splitlines() != ['27017', expected_uri]:
+        problems.append(f'padded MONGO_PORT produced {padded.stdout.splitlines()!r}, '
+                        f'expected [\'27017\', {expected_uri!r}]')
     return problems
 
 

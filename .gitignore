@@ -220,8 +220,8 @@ content/images/splashes/*
 content/files/*
 !content/files/.gitkeep
 
-# User Compose file
-compose.yaml
+# Local Compose overrides
+compose.override.yaml
 
 # MongoDB configuration
 mongodb-config

@@ -7,11 +7,19 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # DEDO_CONFIG overrides the default of config.yaml at the repo root.
 path = os.environ.get("DEDO_CONFIG") or os.path.join(ROOT_DIR, "config.yaml")
 
-with open(path, "r") as f:
-    config = yaml.safe_load(f.read())
-
 class ConfigError(ValueError):
     pass
+
+
+try:
+    with open(path, "r") as f:
+        config = yaml.safe_load(f.read())
+except FileNotFoundError as error:
+    raise ConfigError(
+        f"Configuration file not found at {path!r}. "
+        "To get started, copy config.yaml.example to config.yaml at the repo root "
+        "or set DEDO_CONFIG to an existing configuration file."
+    ) from error
 
 
 def _is_int(value):

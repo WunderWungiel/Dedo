@@ -326,6 +326,9 @@ def run_checks():
         run.check(client, 'GET', '/static/content/images/splashes/smoke.png', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'images', 'splashes', 'smoke.png')])
         run.check(client, 'GET', '/robots.txt', 200)
+        run.check(client, 'GET', '/healthz', 200, body_equals=b'ok',
+                  headers={'Content-Type': 'text/plain',
+                           'Cache-Control': 'no-store'})
 
         run.check(client, 'GET', '/api/v1/resolutions/', 200, api=True, json_contains='240x320')
         run.check(client, 'GET', '/api/v1/vendors/?page=1', 200, api=True,

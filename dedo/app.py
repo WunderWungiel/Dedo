@@ -2,6 +2,7 @@ import atexit
 from datetime import datetime
 
 from flask import Flask, render_template, request, send_from_directory
+from pymongo.errors import PyMongoError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import CONTENT_DIR, config
@@ -41,6 +42,17 @@ def nl2br_filter(text):
 @app.route("/static/content/<path:filename>")
 def content(filename):
     return send_from_directory(CONTENT_DIR, filename)
+
+
+@app.route("/healthz")
+def healthz():
+    headers = {"Content-Type": "text/plain", "Cache-Control": "no-store"}
+    try:
+        db.ping()
+    except PyMongoError as error:
+        app.logger.warning("Health check failed: %s", error)
+        return "db unavailable", 503, headers
+    return "ok", 200, headers
 
 
 @app.errorhandler(404)

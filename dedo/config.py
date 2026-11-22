@@ -1,98 +1,111 @@
+import yaml
 import os
 from urllib.parse import quote_plus
 
-import yaml
-
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# DEDO_CONFIG overrides the default of config.yaml at the repo root.
 path = os.environ.get("DEDO_CONFIG") or os.path.join(ROOT_DIR, "config.yaml")
 
+with open(path, "r") as f:
+    config = yaml.safe_load(f.read())
 
 class ConfigError(ValueError):
     pass
 
 
+def _is_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_str(value):
+    return isinstance(value, str)
+
+
+def _is_port(value):
+    # The MongoDB driver also accepts a quoted port.
+    return _is_int(value) or (isinstance(value, str) and value.strip().isdigit())
+
+
+# Every key the app reads, with a check for the value and what the check expects.
 REQUIRED_KEYS = {
-    "allow_indexing": "must be true or false",
-    "per_page": "must be a positive integer",
-    "api_prefix": "must be a non-empty string starting with '/'",
+    'allow_indexing': (lambda value: isinstance(value, bool), "true or false"),
+    'per_page': (lambda value: _is_int(value) and value > 0, "a positive integer"),
+    'api_prefix': (lambda value: _is_str(value) and value.startswith('/'),
+                   "a non-empty string starting with '/'"),
 }
+
+# The database connection comes only from these, which Docker compose sets from .env, the
+# same values the db container is created with.
+MONGO_ENV = {
+    'host': 'MONGO_HOST',
+    'port': 'MONGO_PORT',
+    'db': 'MONGO_DB',
+    'user': 'MONGO_USER',
+    'password': 'MONGO_PASSWORD',
+}
+REQUIRED_MONGO_ENV = ('db',)
+
+MONGO = {key: os.environ[var] for key, var in MONGO_ENV.items() if var in os.environ}
+
+
+def _mongo_problems():
+    problems = []
+    for key in REQUIRED_MONGO_ENV:
+        if not MONGO.get(key):
+            problems.append(f"set the {MONGO_ENV[key]} environment variable")
+    port = MONGO.get('port')
+    if port and not _is_port(port):
+        problems.append(f"{MONGO_ENV['port']} must be a port number, got {port!r}")
+    if bool(MONGO.get('user')) != bool(MONGO.get('password')):
+        problems.append(f"set both {MONGO_ENV['user']} and {MONGO_ENV['password']}, or neither")
+    return problems
+
 
 _MISSING = object()
 
 
-def _lookup(data, dotted_key):
-    value = data
-    for part in dotted_key.split("."):
-        if not isinstance(value, dict) or part not in value:
+def _lookup(data, key):
+    for part in key.split('.'):
+        if not isinstance(data, dict) or part not in data:
             return _MISSING
-        value = value[part]
-    return value
+        data = data[part]
+    return data
 
 
 def _validate(data):
     if not isinstance(data, dict):
-        raise ConfigError(
-            f"Invalid configuration in {path}: expected a mapping.\n"
-            "See config.yaml.example for a working example."
-        )
+        raise ConfigError(f"{path} must contain a YAML mapping; see config.yaml.example")
 
     problems = []
-
-    for key, message in REQUIRED_KEYS.items():
+    for key, (check, expected) in REQUIRED_KEYS.items():
         value = _lookup(data, key)
-
         if value is _MISSING:
             problems.append(f"{key} is missing")
-        elif key == "allow_indexing" and not isinstance(value, bool):
-            problems.append(f"{key} {message}")
-        elif key == "per_page" and (
-            isinstance(value, bool) or not isinstance(value, int) or value <= 0
-        ):
-            problems.append(f"{key} {message}")
-        elif key == "api_prefix" and (
-            not isinstance(value, str) or not value or not value.startswith("/")
-        ):
-            problems.append(f"{key} {message}")
+        elif not check(value):
+            problems.append(f"{key} must be {expected}, got {value!r}")
 
-    content_dir = _lookup(data, "content_dir")
-    if content_dir is not _MISSING and (
-        not isinstance(content_dir, str) or not content_dir.strip()
-    ):
-        problems.append("content_dir must be a non-empty string")
+    content_dir = data.get('content_dir')
+    if content_dir is not None and not (_is_str(content_dir) and content_dir.strip()):
+        problems.append(f"content_dir must be a non-empty string, got {content_dir!r}")
+
+    problems += _mongo_problems()
 
     if problems:
-        details = "\n".join(f"  - {problem}" for problem in problems)
         raise ConfigError(
-            f"Invalid configuration in {path}:\n{details}\n"
-            "See config.yaml.example for a working example."
+            f"Invalid configuration in {path} or the environment (see config.yaml.example and .env.example):\n"
+            + "\n".join(f"  - {problem}" for problem in problems)
         )
 
-
-try:
-    with open(path, "r") as f:
-        config = yaml.safe_load(f.read())
-except FileNotFoundError as error:
-    raise ConfigError(
-        f"Configuration file not found: {path}\n"
-        "copy config.yaml.example to config.yaml, or set DEDO_CONFIG to its path."
-    ) from error
 
 _validate(config)
 
 
-MONGO_DB = (os.environ.get("MONGO_DB") or "").strip()
-if not MONGO_DB:
-    raise ConfigError("MONGO_DB must be set to a non-empty database name")
-
-MONGO_HOST = os.environ.get("MONGO_HOST") or "localhost"
-MONGO_PORT = os.environ.get("MONGO_PORT") or "27017"
-if not MONGO_PORT.isdigit():
-    raise ConfigError(f"MONGO_PORT must be digits, got {MONGO_PORT!r}")
-
-MONGO_USER = os.environ.get("MONGO_USER") or ""
-MONGO_PASSWORD = os.environ.get("MONGO_PASSWORD") or ""
-if bool(MONGO_USER) != bool(MONGO_PASSWORD):
-    raise ConfigError("MONGO_USER and MONGO_PASSWORD must be set together")
+MONGO_DB = MONGO['db']
+MONGO_HOST = MONGO.get('host') or 'localhost'
+MONGO_PORT = MONGO.get('port') or '27017'
+MONGO_USER = MONGO.get('user') or ''
+MONGO_PASSWORD = MONGO.get('password') or ''
 
 if MONGO_USER:
     MONGO_URI = (

@@ -36,7 +36,9 @@ def _game_conditions(conditions=None, resolution=None):
 
 
 def ping():
-    client.admin.command("ping")
+    # Leave time for /healthz to respond before Compose's four-second HTTP timeout.
+    with pymongo.timeout(3):
+        client.admin.command("ping")
 
 
 def create_indexes():

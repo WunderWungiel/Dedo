@@ -36,7 +36,7 @@
         <div class="LOAD">
             <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" />
                 {% for file in files %}
-                {% if file['filename'] is defined %}
+                {% if file.get('filename') %}
                 <a href="{{ url_for('content', filename='files/' ~ file['filename']) }}" class="bluelink">
                 {% else %}
                 <a href="#" class="bluelink">

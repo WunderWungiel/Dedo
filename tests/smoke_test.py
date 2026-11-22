@@ -79,7 +79,7 @@ FIXTURES = [
         "downloads": 50,
         "date": datetime(2021, 2, 3),
         "banner": False,
-        "resolutions": {"240x320": {"Nokia": [{"type": "jar", "filename": None}]}},
+        "resolutions": {"240x320": {"Nokia": [{"type": "jar"}]}},
     },
 ]
 
@@ -313,6 +313,10 @@ def run_checks():
         run.verify('single-resolution file size lookups', lambda: [
             f'expected lookups only for smoke.jar and smoke.jad, got {checked_files}'
         ] if checked_files != ['smoke.jar', 'smoke.jad'] else [])
+        run.check(client, 'GET', f'/games/{GAME_ID}/screen/320x240', 200,
+                  contains='href="#" class="bluelink"', lacks='/static/content/files/None')
+        run.check(client, 'GET', f'/games/{OTHER_ID}/screen/240x320', 200,
+                  contains='href="#" class="bluelink"')
 
         run.check(client, 'GET', '/games/search', 200, contains='name="q"')
         run.check(client, 'POST', '/games/search', 302, location='/games/search/Smoke/page/1',

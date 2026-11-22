@@ -98,7 +98,10 @@ DEDO_CONFIG=/etc/dedo/config.yaml flask --app dedo.app run
 
 Outside Docker, export the five `MONGO_*` variables as shown above. `MONGO_DB`
 is required; `MONGO_HOST` and `MONGO_PORT` default to `localhost` and `27017`;
-`MONGO_USER` and `MONGO_PASSWORD` are optional but must be set together.
+`MONGO_USER` and `MONGO_PASSWORD` are optional but must be set together. A
+port must be an ASCII decimal number from 1 to 65535 when it is set. A leftover
+`mongodb_uri` in `config.yaml` is rejected at startup; the database connection
+comes only from the `MONGO_*` variables.
 
 ## Maintenance
 
@@ -147,6 +150,15 @@ The application used to live in `app/`, with `app/config.yml`,
 `MONGO_INITDB_DATABASE` instead of the new `MONGO_USER`, `MONGO_PASSWORD` and
 `MONGO_DB`.
 
+Before moving anything, find the database the old app actually used. The old
+Compose file started MongoDB with the database named by
+`MONGO_INITDB_DATABASE`, but the old app connected with the `mongodb_uri` in
+`app/config.yml`. Those names can differ. Read the database name from the URI
+(the path after the host and port, before any `?`) and compare it with
+`MONGO_INITDB_DATABASE` in the old `.env` or Compose file. Keep the database
+the app used; if the names differ, set the new `MONGO_DB` to the app's name, or
+remap the archive as shown in step 7.
+
 The example Compose file mounted a root `./content` directory over
 `/app/static/content`, so check where the real content lives before copying
 anything: `ls content` and `ls app/static/content`.
@@ -161,12 +173,14 @@ anything: `ls content` and `ls app/static/content`.
 
    If that is older than 8.0, use the dump/restore path in step 7; the old
    bind mount cannot be kept. Dump the old database now, while the old stack
-   is still running (this is optional for an 8.0 server):
+   is still running (this is optional for an 8.0 server). Set `OLD_DB` to the
+   live database name you found above:
 
    ```bash
-   docker compose exec -T db sh -c 'mongodump \
+   OLD_DB=dedomil   # the database from the old app URI, not necessarily MONGO_INITDB_DATABASE
+   docker compose exec -T -e "DUMP_DB=$OLD_DB" db sh -c 'mongodump \
      -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
-     --authenticationDatabase admin --db "$MONGO_INITDB_DATABASE" \
+     --authenticationDatabase admin --db "$DUMP_DB" \
      --archive' > dedo.archive
    ```
 
@@ -197,7 +211,9 @@ anything: `ls content` and `ls app/static/content`.
 
    Edit `config.yaml`, remove those three keys, and make sure `per_page`,
    `allow_indexing`, `api_prefix` and `content_dir` are present. Compare with
-   `config.yaml.example` if in doubt.
+   `config.yaml.example` if in doubt. The new app rejects a leftover
+   `mongodb_uri` with a `ConfigError`, so it will not start until that key is
+   gone.
 
 5. Create `.env` from the example:
 
@@ -209,10 +225,11 @@ anything: `ls content` and `ls app/static/content`.
    Copy the old database values into the new names:
    `MONGO_INITDB_ROOT_USERNAME` → `MONGO_USER`,
    `MONGO_INITDB_ROOT_PASSWORD` → `MONGO_PASSWORD`, and
-   `MONGO_INITDB_DATABASE` → `MONGO_DB`. The credentials must match the ones
-   the database already has, because the MongoDB container only creates the
-   root user when the volume is empty. Delete `.env.old` once the new stack
-   works.
+   `MONGO_INITDB_DATABASE` → `MONGO_DB`. Use the live database name from the
+   pre-flight check for `MONGO_DB` when it differs from
+   `MONGO_INITDB_DATABASE`. The credentials must match the ones the database
+   already has, because the MongoDB container only creates the root user when
+   the volume is empty. Delete `.env.old` once the new stack works.
 
 6. Move the content out of the old package, if it is still there:
 
@@ -238,12 +255,16 @@ anything: `ls content` and `ls app/static/content`.
          - ./mongo-config:/data/db
    ```
 
-   With the dump, start the new database, wait for its health check, and
-   replace the shipped dump with your archive:
+   The archive keeps the namespace it was dumped from. The bundled
+   `db/import.sh` maps its own `dedomil.*` namespace into the database named by
+   `MONGO_DB`, but `mongorestore` does not do that for your archive: without
+   remapping it recreates the old database name. Remap the archive explicitly
+   when that name is not the new `MONGO_DB`:
 
    ```bash
    docker compose up -d --wait db
-   docker compose exec -T db sh -c 'mongorestore --drop \
+   docker compose exec -T -e "DUMP_DB=$OLD_DB" db sh -c 'mongorestore --drop \
+     --nsFrom="$DUMP_DB.*" --nsTo="$MONGO_INITDB_DATABASE.*" \
      -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" \
      --authenticationDatabase admin --archive' < dedo.archive
    ```

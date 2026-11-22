@@ -18,7 +18,9 @@ Exit status is 0 when every check passes and 1 otherwise.
 """
 
 import os
+import subprocess
 import sys
+import tempfile
 import traceback
 from contextlib import ExitStack
 from datetime import datetime
@@ -124,6 +126,64 @@ FIXTURES = [
         "description": "Slash game description",
     },
 ]
+
+
+CONFIG_FIXTURE = """\
+per_page: 10
+allow_indexing: false
+api_prefix: /api/v1
+"""
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+
+
+def run_config(extra_env=None, config_text=CONFIG_FIXTURE,
+               expression='import dedo.config'):
+    """Import dedo.config in a fresh process with only the given Mongo settings."""
+    with tempfile.TemporaryDirectory() as directory:
+        config_path = Path(directory) / 'config.yaml'
+        config_path.write_text(config_text)
+        env = {key: value for key, value in os.environ.items()
+               if not key.startswith('MONGO_')}
+        env.update({'DEDO_CONFIG': str(config_path), 'MONGO_DB': 'dedo_config_check'})
+        env.update(extra_env or {})
+        return subprocess.run(
+            [sys.executable, '-c', expression],
+            cwd=ROOT_DIR, env=env, capture_output=True, text=True, timeout=30,
+        )
+
+
+def check_config_validation():
+    """Startup rejects the old URI key and non-ASCII or out-of-range ports."""
+    problems = []
+    secret = 'do-not-print-this-value'
+    obsolete = run_config(config_text=CONFIG_FIXTURE +
+                          f'mongodb_uri: "mongodb://operator:{secret}@db.example/live"\n')
+    if obsolete.returncode == 0:
+        problems.append('a config with mongodb_uri was accepted')
+    else:
+        if 'ConfigError' not in obsolete.stderr:
+            problems.append('mongodb_uri did not raise ConfigError')
+        if 'mongodb_uri' not in obsolete.stderr:
+            problems.append('mongodb_uri diagnostic does not name the key')
+        if secret in obsolete.stderr or 'db.example' in obsolete.stderr:
+            problems.append('mongodb_uri diagnostic leaks its value')
+
+    for port in ('0', '65536', '²'):
+        result = run_config({'MONGO_PORT': port})
+        if result.returncode == 0:
+            problems.append(f'MONGO_PORT={port!r} was accepted')
+        elif 'MONGO_PORT' not in result.stderr:
+            problems.append(f'MONGO_PORT={port!r} diagnostic does not name the variable')
+
+    for extra_env in ({}, {'MONGO_PORT': ''}):
+        default = run_config(extra_env, expression='import dedo.config; print(dedo.config.MONGO_PORT)')
+        if default.returncode != 0:
+            problems.append(f'{extra_env or "omitted"} MONGO_PORT failed: {default.stderr.strip()[-200:]}')
+        elif default.stdout.strip() != '27017':
+            problems.append(f'{extra_env or "omitted"} MONGO_PORT defaulted to '
+                            f'{default.stdout.strip()!r}, expected 27017')
+    return problems
 
 
 def check_empty():
@@ -569,6 +629,7 @@ class Runner:
 
 def run_checks():
     run = Runner()
+    run.verify('config validation', check_config_validation)
     api_prefix = config['api_prefix'].rstrip('/')
     api_game_url = f'{api_prefix}/game/?id={GAME_ID}&resolution=240x320'
     per_page = config['per_page']

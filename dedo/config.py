@@ -31,8 +31,15 @@ def _is_str(value):
 
 
 def _is_port(value):
-    # The MongoDB driver also accepts a quoted port.
-    return _is_int(value) or (isinstance(value, str) and value.strip().isdigit())
+    # Compose passes strings; the driver also accepts an unquoted integer. Only
+    # ASCII decimal digits are a port, so Unicode digits such as '²' are not.
+    if _is_int(value):
+        return 1 <= value <= 65535
+    if not isinstance(value, str):
+        return False
+    digits = value.strip()
+    return (digits.isascii() and digits.isdecimal() and len(digits) <= 5
+            and 1 <= int(digits) <= 65535)
 
 
 # Every key the app reads, with a check for the value and what the check expects.
@@ -64,7 +71,9 @@ def _mongo_problems():
             problems.append(f"set the {MONGO_ENV[key]} environment variable")
     port = MONGO.get('port')
     if port and not _is_port(port):
-        problems.append(f"{MONGO_ENV['port']} must be a port number, got {port!r}")
+        problems.append(
+            f"{MONGO_ENV['port']} must be an ASCII decimal port in the range "
+            f"1-65535, got {port!r}")
     if bool(MONGO.get('user')) != bool(MONGO.get('password')):
         problems.append(f"set both {MONGO_ENV['user']} and {MONGO_ENV['password']}, or neither")
     return problems
@@ -92,6 +101,12 @@ def _validate(data):
             problems.append(f"{key} is missing")
         elif not check(value):
             problems.append(f"{key} must be {expected}, got {value!r}")
+
+    if 'mongodb_uri' in data:
+        problems.append(
+            "mongodb_uri is no longer supported; remove it and set MONGO_DB, "
+            "MONGO_HOST, MONGO_PORT, MONGO_USER and MONGO_PASSWORD in the environment"
+        )
 
     content_dir = data.get('content_dir')
     if content_dir is not None and not (_is_str(content_dir) and content_dir.strip()):

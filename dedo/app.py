@@ -8,18 +8,20 @@ import humanize
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import config
-from . import db
+from . import cli, db
 from .blueprints.api import api as api_blueprint
 
 atexit.register(db.client.close)
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 86400
 app.wsgi_app = ProxyFix(
     app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
 )
 
 app.register_blueprint(api_blueprint)
+app.cli.add_command(cli.create_indexes)
 
 def generate_pages(page, total_pages):
     return {

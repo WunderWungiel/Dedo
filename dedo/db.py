@@ -1,7 +1,9 @@
 import re
 
 import pymongo
+from pymongo.errors import DuplicateKeyError
 
+from .cache import ttl_cache
 from .config import MONGO_DB, MONGO_URI, config
 
 # Only these fields may be used as a sort key; the value is the stored name.
@@ -35,6 +37,27 @@ def _game_conditions(conditions=None, resolution=None):
 
 def ping():
     client.admin.command("ping")
+
+
+def create_indexes():
+    games_collection = get_collection('games')
+    try:
+        return [
+            games_collection.create_index([("id", 1)], unique=True, name="id_unique"),
+            games_collection.create_index([("vendor", 1)], name="vendor"),
+            games_collection.create_index([("downloads", -1)], name="downloads_desc"),
+            games_collection.create_index([("banner", 1)], name="banner"),
+        ]
+    except DuplicateKeyError as error:
+        duplicates = games_collection.aggregate([
+            {'$group': {'_id': '$id', 'count': {'$sum': 1}}},
+            {'$match': {'count': {'$gt': 1}}},
+            {'$sort': {'_id': 1}},
+        ])
+        ids = [document['_id'] for document in duplicates]
+        raise RuntimeError(
+            f"Cannot create the unique id index; duplicate game ids: {ids}"
+        ) from error
 
 
 def count_games(conditions=None, resolution=None, limit=None):
@@ -134,10 +157,14 @@ def get_game(id):
     result['date'] = result['date'].strftime('%d.%m.%Y')
     return result
 
+# Derived from the games collection, which can gain rows between restarts:
+# a short TTL instead of Wunderland's cache-until-restart. See spec D6.
+@ttl_cache(300)
 def get_vendors():
     vendors = client[MONGO_DB].games.distinct("vendor")
     return sorted(vendor for vendor in vendors if vendor)
 
+@ttl_cache(300)
 def get_resolutions():
     games_collection = get_collection('games')
 

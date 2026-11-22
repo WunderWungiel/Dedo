@@ -24,7 +24,7 @@ from datetime import datetime
 from urllib.parse import quote
 from xml.etree import ElementTree as ET
 
-from dedo import db
+from dedo import cache, db
 from dedo.app import app
 
 CONTENT_DIR = os.path.join(app.static_folder, "content")
@@ -91,6 +91,8 @@ def check_empty():
 
 
 def seed():
+    db.create_indexes()
+
     for path, data in FIXTURE_FILES.items():
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'xb') as destination:
@@ -108,10 +110,80 @@ def cleanup():
             pass
 
 
+def check_indexes():
+    names = {index['name'] for index in db.get_collection('games').list_indexes()}
+    expected = {'_id_', 'id_unique', 'vendor', 'downloads_desc', 'banner'}
+    missing = sorted(expected - names)
+    return [f"missing indexes: {', '.join(missing)}"] if missing else []
+
+
+def check_vendors():
+    vendors = db.get_vendors()
+    problems = []
+    if vendors != sorted(vendors):
+        problems.append(f"vendors are not sorted: {vendors}")
+    missing = sorted({GAME_VENDOR, OTHER_VENDOR} - set(vendors))
+    if missing:
+        problems.append(f"vendors lack: {', '.join(missing)}")
+    return problems
+
+
+def check_cache():
+    problems = []
+
+    calls = []
+
+    @cache.ttl_cache(300)
+    def sample(value):
+        calls.append(value)
+        return value
+
+    sample(1)
+    sample(1)
+    if calls != [1]:
+        problems.append(f"ttl_cache did not reuse the entry, calls={calls}")
+    sample.cache_clear()
+    sample(1)
+    if calls != [1, 1]:
+        problems.append(f"cache_clear did not drop the entry, calls={calls}")
+
+    games = db.get_collection('games')
+    cache.clear()
+    baseline = db.get_vendors()
+    extra_id = GAME_ID + 2
+    games.insert_one({'id': extra_id, 'vendor': 'Cache Vendor'})
+    try:
+        cached = db.get_vendors()
+    finally:
+        games.delete_one({'id': extra_id})
+    if cached != baseline:
+        problems.append("get_vendors did not serve the cached list")
+    cache.clear()
+    if 'Cache Vendor' in db.get_vendors():
+        problems.append("cache.clear did not reset get_vendors")
+
+    return problems
+
+
 class Runner:
     def __init__(self):
         self.failures = 0
         self.count = 0
+
+    def report(self, label, problems):
+        if problems:
+            self.failures += 1
+            print(f"FAIL {label}: {'; '.join(problems)}")
+        else:
+            print(f"ok   {label}")
+
+    def verify(self, label, check):
+        self.count += 1
+        try:
+            problems = check() or []
+        except Exception:
+            problems = ["raised:\n" + traceback.format_exc()]
+        self.report(label, problems)
 
     def check(self, client, method, path, status, contains=None, xml=False, location=None,
               location_exact=None, data=None, lacks=None, api=False, headers=None,
@@ -178,11 +250,7 @@ class Runner:
         except Exception:
             problems = ["raised:\n" + traceback.format_exc()]
 
-        if problems:
-            self.failures += 1
-            print(f"FAIL {label}: {'; '.join(problems)}")
-        else:
-            print(f"ok   {label}")
+        self.report(label, problems)
 
 
 def run_checks():
@@ -225,7 +293,8 @@ def run_checks():
         run.check(client, 'GET', '/games/browse', 200)
         run.check(client, 'GET', '/games/browse/page/1', 200)
 
-        run.check(client, 'GET', '/static/css/style.css', 200)
+        run.check(client, 'GET', '/static/css/style.css', 200,
+                  headers={'Cache-Control': 'public, max-age=86400'})
         run.check(client, 'GET', '/static/content/files/smoke.jar', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'files', 'smoke.jar')])
         run.check(client, 'GET', '/robots.txt', 200)
@@ -243,6 +312,10 @@ def run_checks():
                   json_keys=['results', 'total_pages', 'count'], result_title=GAME_TITLE)
         run.check(client, 'GET', '/api/v1/resolution/?name=240x320&page=1', 200, api=True,
                   json_keys=['results', 'total_pages', 'count'], result_title=GAME_TITLE)
+
+    run.verify('indexes', check_indexes)
+    run.verify('sorted vendors', check_vendors)
+    run.verify('ttl cache', check_cache)
 
     print(f"\n{run.count - run.failures}/{run.count} checks passed")
     return run.failures == 0

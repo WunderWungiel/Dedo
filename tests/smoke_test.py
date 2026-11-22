@@ -336,15 +336,6 @@ def check_slash_routes(client):
             query.get(key) == [value] for key, value in expected.items()
         )
 
-    def check_redirect(url, path, **expected):
-        response = client.get(url)
-        if response.status_code != 302:
-            problems.append(f'{url} returned {response.status_code}, expected 302')
-            return
-        location = response.headers.get('Location', '')
-        if not follows(location, path, **expected):
-            problems.append(f'{url} redirected to {location!r}, expected {path} {expected}')
-
     with ExitStack() as cleanup:
         cleanup.callback(games.delete_many, {'_id': {'$in': [document['_id'] for document in documents]}})
         games.insert_many(documents)
@@ -377,26 +368,22 @@ def check_slash_routes(client):
             problems.append(f'search form redirected to {location!r}, expected /games/search?q=A/B&page=1')
 
         # Pagination keeps the slash query in the query string and page 2 works.
-        first = client.get('/games/search?q=A%2FB&page=1')
-        if first.status_code != 200:
-            problems.append(f'slash search page 1 returned {first.status_code}')
-        else:
-            page = ET.fromstring(first.data)
-            links = [link.get('href') for link in page.findall('.//{*}div[@class="PAGES"]/{*}a')]
-            if not any(link and follows(link, '/games/search', q='A/B', page='2') for link in links):
-                problems.append(f'slash search page 1 has no query-form page 2 link: {links}')
-            second = client.get('/games/search?q=A%2FB&page=2')
-            body = second.get_data(as_text=True)
-            if second.status_code != 200:
-                problems.append(f'slash search page 2 returned {second.status_code}')
-            elif not any(f'Slash Search {number} A/B' in body for number in range(1, 13)):
-                problems.append('slash search page 2 lacks a temporary result')
-
-        # Negative page numbers redirect to the first page instead of 404ing.
-        check_redirect('/games/search?q=A%2FB&page=-1', '/games/search', q='A/B')
-        check_redirect('/games/search/Smoke/page/-1', '/games/search/Smoke')
-        check_redirect(f'/games/vendor?name={quote(SLASH_VENDOR)}&page=-1', '/games/vendor', name=SLASH_VENDOR)
-        check_redirect('/games/vendor/Smoke%20Vendor/page/-1', '/games/vendor/Smoke%20Vendor')
+        # Pin per_page so the assertion holds under any operator configuration.
+        with patch.dict(config, per_page=10):
+            first = client.get('/games/search?q=A%2FB&page=1')
+            if first.status_code != 200:
+                problems.append(f'slash search page 1 returned {first.status_code}')
+            else:
+                page = ET.fromstring(first.data)
+                links = [link.get('href') for link in page.findall('.//{*}div[@class="PAGES"]/{*}a')]
+                if not any(link and follows(link, '/games/search', q='A/B', page='2') for link in links):
+                    problems.append(f'slash search page 1 has no query-form page 2 link: {links}')
+                second = client.get('/games/search?q=A%2FB&page=2')
+                body = second.get_data(as_text=True)
+                if second.status_code != 200:
+                    problems.append(f'slash search page 2 returned {second.status_code}')
+                elif not any(f'Slash Search {number} A/B' in body for number in range(1, 13)):
+                    problems.append('slash search page 2 lacks a temporary result')
 
         # A vendor name that matches nothing is a Dedo page, not a redirect.
         response = client.get('/games/vendor?name=No%20Such%20Vendor')
@@ -415,6 +402,77 @@ def check_slash_routes(client):
                 problems.append(f'legacy URL {url} lacks {GAME_TITLE!r}')
 
     cache.clear()
+    return problems
+
+
+def check_description_rendering(client):
+    """A missing or non-string description must not break the game page."""
+    problems = []
+    games = db.get_collection('games')
+    documents = [
+        {'_id': ObjectId(), 'id': OTHER_ID + 200, 'title': 'No Description Game',
+         'vendor': OTHER_VENDOR, 'downloads': 1, 'date': FIXTURES[0]['date'],
+         'banner': False,
+         'resolutions': {'240x320': {'Nokia': [{'type': 'jar'}]}}},
+        {'_id': ObjectId(), 'id': OTHER_ID + 201, 'title': 'Numeric Description Game',
+         'vendor': OTHER_VENDOR, 'downloads': 1, 'date': FIXTURES[0]['date'],
+         'banner': False,
+         'resolutions': {'240x320': {'Nokia': [{'type': 'jar'}]}},
+         'description': 12345},
+    ]
+
+    with ExitStack() as cleanup:
+        cleanup.callback(games.delete_many, {'_id': {'$in': [document['_id'] for document in documents]}})
+        games.insert_many(documents)
+        for document in documents:
+            response = client.get(f'/games/{document["id"]}')
+            if response.status_code != 200:
+                problems.append(f'{document["title"]} returned {response.status_code}')
+                continue
+            try:
+                ET.fromstring(response.data)
+            except ET.ParseError as error:
+                problems.append(f'{document["title"]}: invalid XML: {error}')
+
+        numeric = client.get(f'/games/{documents[1]["id"]}')
+        if b'12345' not in numeric.data:
+            problems.append('numeric description was not rendered')
+    return problems
+
+
+def check_negative_pages(client):
+    """Negative and past-the-end pages redirect on every listing."""
+    problems = []
+    cases = [
+        ('/games/search?q=A%2FB&page=-1', '/games/search?q=A/B'),
+        ('/games/search?q=A%2FB&page=0', '/games/search?q=A/B'),
+        ('/games/search?q=A%2FB&page=99', '/games/search?q=A/B'),
+        ('/games/vendor?name=Smoke+Vendor&page=-1', '/games/vendor?name=Smoke+Vendor'),
+        ('/games/vendor?name=Smoke+Vendor&page=0', '/games/vendor?name=Smoke+Vendor'),
+        ('/games/vendor?name=Smoke+Vendor&page=99', '/games/vendor?name=Smoke+Vendor'),
+        ('/games/search/Smoke/page/-1', '/games/search/Smoke'),
+        ('/games/search/Smoke/page/99', '/games/search/Smoke'),
+        ('/games/vendor/Smoke%20Vendor/page/-1', '/games/vendor/Smoke%20Vendor'),
+        ('/games/vendor/Smoke%20Vendor/page/99', '/games/vendor/Smoke%20Vendor'),
+        ('/games/top/page/-1', '/games/top'),
+        ('/games/top/page/99', '/games/top'),
+        ('/games/vendors/page/-1', '/games/vendors'),
+        ('/games/vendors/page/99', '/games/vendors'),
+        ('/games/browse/page/-1', '/games/browse'),
+        ('/games/browse/page/99', '/games/browse'),
+        ('/games/screen/240x320/page/-1', '/games/screen/240x320'),
+        ('/games/screen/240x320/page/99', '/games/screen/240x320'),
+    ]
+
+    # Pin per_page so "past the end" means the same page under any operator config.
+    with patch.dict(config, per_page=10):
+        for path, location in cases:
+            response = client.get(path)
+            if response.status_code != 302:
+                problems.append(f'{path} returned {response.status_code}, expected 302')
+            elif response.headers.get('Location') != location:
+                problems.append(f'{path} redirected to {response.headers.get("Location")!r}, '
+                                f'expected {location!r}')
     return problems
 
 
@@ -548,6 +606,7 @@ def run_checks():
         run.check(client, 'GET', f'/games/{OTHER_ID}/screen/240x320', 200,
                   contains='href="#" class="bluelink"')
         run.verify('game image links', lambda: check_game_image_links(client))
+        run.verify('description tolerance', lambda: check_description_rendering(client))
 
         run.check(client, 'GET', '/games/search', 200, contains='name="q"')
         run.check(client, 'POST', '/games/search', 302, location='/games/search/Smoke/page/1',
@@ -575,6 +634,7 @@ def run_checks():
         run.check(client, 'GET', '/games/vendors', 200)
         run.check(client, 'GET', f'/games/vendor/{quote(GAME_VENDOR)}', 200, contains=GAME_TITLE)
         run.verify('slash routing', lambda: check_slash_routes(client))
+        run.verify('negative and past-the-end pages', lambda: check_negative_pages(client))
 
         run.check(client, 'GET', '/games/screens', 200)
         run.check(client, 'GET', '/games/screen/240x320', 200, contains=GAME_TITLE)

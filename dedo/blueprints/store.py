@@ -96,7 +96,7 @@ def search_query(query, page=None):
 
 
 @store.route("/games/top")
-@store.route("/games/top/page/<int:page>")
+@store.route("/games/top/page/<int(signed=True):page>")
 def top_games(page=None):
 
     page = page if page is not None else 1
@@ -125,7 +125,7 @@ def latest_games():
 
 
 @store.route("/games/vendors")
-@store.route("/games/vendors/page/<int:page>")
+@store.route("/games/vendors/page/<int(signed=True):page>")
 def vendors(page=None):
 
     page = page if page is not None else 1
@@ -202,7 +202,7 @@ def games_resolutions():
 
 
 @store.route("/games/screen/<resolution>")
-@store.route("/games/screen/<resolution>/page/<int:page>")
+@store.route("/games/screen/<resolution>/page/<int(signed=True):page>")
 def resolution_games(resolution, page=None):
 
     # The database lookup uses dot notation for resolution keys.
@@ -225,7 +225,7 @@ def resolution_games(resolution, page=None):
 
 
 @store.route("/games/browse")
-@store.route("/games/browse/page/<int:page>")
+@store.route("/games/browse/page/<int(signed=True):page>")
 def browse_games(page=None):
 
     page = page if page is not None else 1

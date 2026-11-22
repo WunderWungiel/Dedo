@@ -77,5 +77,5 @@ def image_filename(value: str | dict | None) -> str | None:
 def nl2br(text):
     if text is None:
         return Markup("")
-    text = XML_INVALID_CHARACTERS.sub("", text)
+    text = XML_INVALID_CHARACTERS.sub("", str(text))
     return Markup("<br/>").join(escape(text).split("\n"))

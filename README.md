@@ -118,10 +118,10 @@ flask --app dedo.app create-indexes
 
 The command is idempotent and lists the indexes it created.
 
-The `db` container restores `db/dump` through `db/import.sh` only when the
-`mongo_data` volume is empty, on the first start. Later starts keep the
-existing data; to restore a dump manually, use `mongorestore` inside the
-container.
+The `db` container restores `db/dump` into the database named by `MONGO_DB`
+through `db/import.sh` only when the `mongo_data` volume is empty, on the first
+start. Later starts keep the existing data; to restore a dump manually, use
+`mongorestore` inside the container.
 
 ## Smoke test
 

@@ -75,7 +75,8 @@ services:
       - mongo_data:/data/db
       - ./db:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval \"if (db.getSiblingDB(process.env.MONGO_INITDB_DATABASE).games.estimatedDocumentCount() === 0) quit(1)\""]
+      # The init process listens on loopback only. Wait for the final server.
+      test: ["CMD-SHELL", "mongosh --host db --quiet -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval \"if (db.getSiblingDB(process.env.MONGO_INITDB_DATABASE).games.estimatedDocumentCount() === 0) quit(1)\""]
       interval: 5s
       timeout: 5s
       start_period: 60s

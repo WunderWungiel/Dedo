@@ -104,8 +104,8 @@ def _validate(data):
 
     if 'mongodb_uri' in data:
         problems.append(
-            "mongodb_uri is no longer supported; remove it and set MONGO_DB, "
-            "MONGO_HOST, MONGO_PORT, MONGO_USER and MONGO_PASSWORD in the environment"
+            "mongodb_uri is no longer supported; remove it and set MONGO_DB; "
+            "MONGO_HOST, MONGO_PORT, MONGO_USER and MONGO_PASSWORD are optional"
         )
 
     content_dir = data.get('content_dir')

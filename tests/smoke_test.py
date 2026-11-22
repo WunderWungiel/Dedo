@@ -170,6 +170,8 @@ def check_config_validation():
             problems.append('mongodb_uri diagnostic does not name the key')
         if secret in obsolete.stderr or 'db.example' in obsolete.stderr:
             problems.append('mongodb_uri diagnostic leaks its value')
+        if 'MONGO_DB' not in obsolete.stderr or 'are optional' not in obsolete.stderr:
+            problems.append('mongodb_uri diagnostic does not mark the other MONGO_* variables optional')
 
     for port in ('0', '65536', '²'):
         result = run_config({'MONGO_PORT': port})
@@ -348,6 +350,16 @@ def check_top_50_limit(client):
         found = titles(fifth)
         if found != expected[48:50]:
             problems.append(f'expected ranks 49 and 50 {expected[48:50]}, got {found}')
+    return problems
+
+
+def check_image_filename_normalization():
+    """Stored filenames are trimmed before they are turned into URLs."""
+    problems = []
+    for value in (' smoke.png ', {'filename': ' smoke.png '}):
+        result = helpers.image_filename(value)
+        if result != 'smoke.png':
+            problems.append(f'image_filename({value!r}) returned {result!r}')
     return problems
 
 
@@ -741,6 +753,7 @@ def run_checks():
         run.check(client, 'GET', f'/games/{OTHER_ID}/screen/240x320', 200,
                   contains='href="#" class="bluelink"')
         run.verify('game image links', lambda: check_game_image_links(client))
+        run.verify('image filename normalization', check_image_filename_normalization)
         run.verify('description tolerance', lambda: check_description_rendering(client))
 
         run.check(client, 'GET', '/games/search', 200, contains='name="q"')
@@ -768,7 +781,8 @@ def run_checks():
         run.check(client, 'GET', '/games/top/page/0', 302, location_exact='/games/top')
         run.check(client, 'GET', '/games/top/page/99', 302, location_exact=last_top_url)
         run.verify('Top 50 caps the partial final page', lambda: check_top_50_limit(client))
-        run.check(client, 'GET', '/games/latest', 200, contains=OTHER_TITLE)
+        run.check(client, 'GET', '/games/latest', 200,
+                  contains=[OTHER_TITLE, '03.02.2021'], lacks='2021-02-03 00:00:00')
 
         run.check(client, 'GET', '/games/vendors', 200)
         run.check(client, 'GET', f'/games/vendor/{quote(GAME_VENDOR)}', 200, contains=GAME_TITLE)

@@ -53,6 +53,11 @@ def image_filename_filter(value):
     return helpers.image_filename(value)
 
 
+@app.template_filter('date_dmy')
+def date_dmy_filter(value):
+    return helpers.date_dmy(value)
+
+
 @app.route("/static/content/<path:filename>")
 def content(filename):
     mimetype = DOWNLOAD_TYPES.get(splitext(filename)[1].lower())

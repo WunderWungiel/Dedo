@@ -270,8 +270,9 @@ anything: `ls content` and `ls app/static/content`.
    files are already in place and there is nothing to copy. Delete
    `app/static/content` (and the rest of the leftover `app/` directory) once
    downloads from the new site work. The URLs stay the same
-   (`/static/content/...`), so no links change. The app container runs as UID
-   1000, which only needs read access to `content/` and `config.yaml`.
+   (`/static/content/...`), so no links change. The app container runs as
+   `APP_UID` (default 1000), which only needs read access to `content/` and
+   `config.yaml`.
 
 7. Keep the database data. Choose one of these paths.
 

@@ -68,10 +68,22 @@ def attach_file_sizes(game, resolution=None):
 
 
 def image_filename(value: str | dict | None) -> str | None:
-    """The stored filename for an image, whether it is a string or an object."""
+    """The trimmed stored filename for an image, whether it is a string or an object."""
     if isinstance(value, dict):
         value = value.get("filename")
-    return value if isinstance(value, str) and value.strip() else None
+    if isinstance(value, str):
+        filename = value.strip()
+        return filename or None
+    return None
+
+
+def date_dmy(value):
+    """Render dates as dd.mm.yyyy, leaving already-formatted values alone."""
+    if value is None:
+        return ""
+    if hasattr(value, "strftime"):
+        return value.strftime("%d.%m.%Y")
+    return value
 
 
 def nl2br(text):

@@ -44,6 +44,11 @@ def nl2br_filter(text):
     return helpers.nl2br(text)
 
 
+@app.template_filter('image_filename')
+def image_filename_filter(value):
+    return helpers.image_filename(value)
+
+
 @app.route("/static/content/<path:filename>")
 def content(filename):
     mimetype = JAVA_DOWNLOAD_TYPES.get(splitext(filename)[1].lower())

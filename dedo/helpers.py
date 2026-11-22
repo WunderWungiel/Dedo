@@ -60,6 +60,13 @@ def attach_file_sizes(game, resolution=None):
     return game
 
 
+def image_filename(value: str | dict | None) -> str | None:
+    """The stored filename for an image, whether it is a string or an object."""
+    if isinstance(value, dict):
+        value = value.get("filename")
+    return value if isinstance(value, str) and value.strip() else None
+
+
 def nl2br(text):
     if text is None:
         return Markup("")

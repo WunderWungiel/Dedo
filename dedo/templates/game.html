@@ -4,15 +4,17 @@
 
 {% block content %}
         <div class="NHRY">{{ game['title'] }}</div>
-        {% if game['splash'] is defined %}
+        {% set splash = game['splash'] | image_filename %}
+        {% if splash %}
         <div class="SPLASH"> 
-            <a href="{{ url_for('content', filename='images/splashes/' ~ game['splash']) }}"><img src="{{ url_for('content', filename='images/splashes/' ~ game['splash']) }}" alt="." width="130" height="130" /></a>
+            <a href="{{ url_for('content', filename='images/splashes/' ~ splash) }}"><img src="{{ url_for('content', filename='images/splashes/' ~ splash) }}" alt="." width="130" height="130" /></a>
         </div>
         {% endif %}
   
-        {% if game['screenshot'] is defined %}
+        {% set screenshot = game['screenshot'] | image_filename %}
+        {% if screenshot %}
         <div class="SECSCR">
-            <a href="{{ url_for('content', filename='images/screenshots/' ~ game['screenshot']) }}" class="bluelink">[second screenshot]</a>
+            <a href="{{ url_for('content', filename='images/screenshots/' ~ screenshot) }}" class="bluelink">[second screenshot]</a>
         </div>
         {% endif %}
   

@@ -38,16 +38,21 @@ COLLECTIONS = ['games']
 
 GAME_ID = 900000001
 OTHER_ID = 900000002
+MISSING_ID = 900000000
 GAME_TITLE = "Smoke Game"
 OTHER_TITLE = "Other Game"
+MISSING_TITLE = "Missing Images Game"
 GAME_VENDOR = "Smoke Vendor"
 OTHER_VENDOR = "Other Vendor"
+MISSING_VENDOR = "Missing Vendor"
 
 FIXTURE_FILES = {
     os.path.join(CONTENT_DIR, "files", "smoke.jar"): b"PK\x03\x04smoke-jar-fixture",
     os.path.join(CONTENT_DIR, "files", "smoke.jad"): b"MIDlet-Name: Smoke Game\n",
     os.path.join(CONTENT_DIR, "images", "splashes", "smoke.png"): b"\x89PNG\r\n\x1a\nsmoke",
     os.path.join(CONTENT_DIR, "images", "screenshots", "smoke.jpg"): b"\xff\xd8\xff\xe0smoke",
+    os.path.join(CONTENT_DIR, "images", "splashes", "other-splash.png"): b"\x89PNG\r\n\x1a\nother",
+    os.path.join(CONTENT_DIR, "images", "screenshots", "other-shot.jpg"): b"\xff\xd8\xff\xe0other",
     os.path.join(CONTENT_DIR, "images", "banners", f"{GAME_ID}.jpg"): b"\xff\xd8\xff\xe0banner",
 }
 
@@ -68,8 +73,10 @@ FIXTURES = [
             },
             "320x240": {"Sony Ericsson": [{"type": "jar", "filename": None}]},
         },
-        "splash": "smoke.png",
-        "screenshot": "smoke.jpg",
+        "splash": {"filename": "smoke.png",
+                   "link": "http://dedomil.net/hry_scr/smoke/smoke.png"},
+        "screenshot": {"filename": "smoke.jpg",
+                       "link": "http://dedomil.net/hry_scr/smoke/smoke.jpg"},
         "description": "Line one\nLine two <b>x</b>",
     },
     {
@@ -80,6 +87,21 @@ FIXTURES = [
         "date": datetime(2021, 2, 3),
         "banner": False,
         "resolutions": {"240x320": {"Nokia": [{"type": "jar"}]}},
+        "splash": "other-splash.png",
+        "screenshot": "other-shot.jpg",
+        "description": "Other game description",
+    },
+    {
+        "id": MISSING_ID,
+        "title": MISSING_TITLE,
+        "vendor": MISSING_VENDOR,
+        "downloads": 1,
+        "date": datetime(2019, 1, 1),
+        "banner": False,
+        "resolutions": {"240x320": {"Nokia": [{"type": "jar"}]}},
+        "splash": {"link": "http://dedomil.net/hry_scr/missing/missing.png"},
+        "screenshot": {"filename": None, "link": "http://dedomil.net/hry_scr/missing/missing.jpg"},
+        "description": "Missing image description",
     },
 ]
 
@@ -195,6 +217,45 @@ def check_top_50_limit(client):
     page = ET.fromstring(response.data)
     titles = [link.text for link in page.findall('.//{*}div[@class="GMENU"]/{*}a')]
     return [f'expected ranks 49 and 50, got {titles}'] if titles != ['Rank 49', 'Rank 50'] else []
+
+
+def check_game_image_links(client):
+    problems = []
+    cases = [
+        (GAME_ID, 'images/splashes/smoke.png', 'images/screenshots/smoke.jpg'),
+        (OTHER_ID, 'images/splashes/other-splash.png', 'images/screenshots/other-shot.jpg'),
+    ]
+    for game_id, splash, screenshot in cases:
+        response = client.get(f'/games/{game_id}')
+        if response.status_code != 200:
+            problems.append(f'game {game_id}: status {response.status_code}')
+            continue
+        page = ET.fromstring(response.data)
+        for block, relative in (('SPLASH', splash), ('SECSCR', screenshot)):
+            link = page.find(f'.//{{*}}div[@class="{block}"]/{{*}}a')
+            url = link.get('href') if link is not None else None
+            if url is None:
+                problems.append(f'game {game_id}: no {block} link')
+                continue
+            expected = '/static/content/' + relative
+            if url != expected:
+                problems.append(f'game {game_id}: {block} link {url!r}, expected {expected!r}')
+                continue
+            image = client.get(url)
+            if image.status_code != 200:
+                problems.append(f'game {game_id}: {url} returned {image.status_code}')
+            elif image.data != FIXTURE_FILES[os.path.join(CONTENT_DIR, relative)]:
+                problems.append(f'game {game_id}: {url} returned the wrong bytes')
+
+    response = client.get(f'/games/{MISSING_ID}')
+    if response.status_code != 200:
+        problems.append(f'game {MISSING_ID}: status {response.status_code}')
+    else:
+        page = ET.fromstring(response.data)
+        for block in ('SPLASH', 'SECSCR'):
+            if page.find(f'.//{{*}}div[@class="{block}"]/{{*}}a') is not None:
+                problems.append(f'game {MISSING_ID}: rendered a {block} link without a filename')
+    return problems
 
 
 class Runner:
@@ -322,6 +383,7 @@ def run_checks():
                   contains='href="#" class="bluelink"', lacks='/static/content/files/None')
         run.check(client, 'GET', f'/games/{OTHER_ID}/screen/240x320', 200,
                   contains='href="#" class="bluelink"')
+        run.verify('game image links', lambda: check_game_image_links(client))
 
         run.check(client, 'GET', '/games/search', 200, contains='name="q"')
         run.check(client, 'POST', '/games/search', 302, location='/games/search/Smoke/page/1',

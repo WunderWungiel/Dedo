@@ -15,7 +15,11 @@ atexit.register(db.client.close)
 
 # Endpoints that serve files, where a missing file is a plain 404, not a page.
 FILE_ENDPOINTS = {'static', 'content'}
-JAVA_DOWNLOAD_TYPES = {
+# Phones pick the installer by Content-Type. Python knows these types only from
+# the host's /etc/mime.types, which the Alpine image lacks, so set them here.
+DOWNLOAD_TYPES = {
+    '.sis': 'application/vnd.symbian.install',
+    '.sisx': 'x-epoc/x-sisx-app',
     '.jar': 'application/java-archive',
     '.jad': 'text/vnd.sun.j2me.app-descriptor',
 }
@@ -51,7 +55,7 @@ def image_filename_filter(value):
 
 @app.route("/static/content/<path:filename>")
 def content(filename):
-    mimetype = JAVA_DOWNLOAD_TYPES.get(splitext(filename)[1].lower())
+    mimetype = DOWNLOAD_TYPES.get(splitext(filename)[1].lower())
     return send_from_directory(CONTENT_DIR, filename, mimetype=mimetype)
 
 

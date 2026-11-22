@@ -1,11 +1,18 @@
 import math
 import os
+import re
 
 import humanize
 from flask import redirect, url_for
 from markupsafe import Markup, escape
 
 from .config import CONTENT_DIR
+
+# XML 1.0 does not allow most control characters, and an escaped one still
+# makes the page unparseable, so drop them before escaping.
+XML_INVALID_CHARACTERS = re.compile(
+    '[^\u0009\u000a\u000d\u0020-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]'
+)
 
 
 def generate_pages(page, total_pages):
@@ -70,4 +77,5 @@ def image_filename(value: str | dict | None) -> str | None:
 def nl2br(text):
     if text is None:
         return Markup("")
+    text = XML_INVALID_CHARACTERS.sub("", text)
     return Markup("<br/>").join(escape(text).split("\n"))

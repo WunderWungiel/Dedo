@@ -49,6 +49,8 @@ MISSING_VENDOR = "Missing Vendor"
 FIXTURE_FILES = {
     os.path.join(CONTENT_DIR, "files", "smoke.jar"): b"PK\x03\x04smoke-jar-fixture",
     os.path.join(CONTENT_DIR, "files", "smoke.jad"): b"MIDlet-Name: Smoke Game\n",
+    os.path.join(CONTENT_DIR, "files", "smoke.sis"): b"not a real sis file",
+    os.path.join(CONTENT_DIR, "files", "smoke.sisx"): b"not a real sisx file",
     os.path.join(CONTENT_DIR, "images", "splashes", "smoke.png"): b"\x89PNG\r\n\x1a\nsmoke",
     os.path.join(CONTENT_DIR, "images", "screenshots", "smoke.jpg"): b"\xff\xd8\xff\xe0smoke",
     os.path.join(CONTENT_DIR, "images", "splashes", "other-splash.png"): b"\x89PNG\r\n\x1a\nother",
@@ -69,6 +71,8 @@ FIXTURES = [
                 "Nokia": [
                     {"type": "jar", "filename": "smoke.jar"},
                     {"type": "jad", "filename": "smoke.jad"},
+                    {"type": "sis", "filename": "smoke.sis"},
+                    {"type": "sisx", "filename": "smoke.sisx"},
                 ]
             },
             "320x240": {"Sony Ericsson": [{"type": "jar", "filename": None}]},
@@ -77,7 +81,8 @@ FIXTURES = [
                    "link": "http://dedomil.net/hry_scr/smoke/smoke.png"},
         "screenshot": {"filename": "smoke.jpg",
                        "link": "http://dedomil.net/hry_scr/smoke/smoke.jpg"},
-        "description": "Line one\nLine two <b>x</b>",
+        # U+0019 is not a legal XML 1.0 character and must not reach the page.
+        "description": "Line one\x19\nLine two <b>x</b>",
     },
     {
         "id": OTHER_ID,
@@ -408,16 +413,20 @@ def run_checks():
         run.check(client, 'GET', f'/games/{GAME_ID}/screen/999x999', 404)
 
         run.check(client, 'GET', f'/games/{GAME_ID}/screens', 200, contains='240x320')
-        # The description is escaped before line breaks are added.
+        # The description is escaped before line breaks are added, the illegal
+        # control character is dropped, and the head declares the real media
+        # type. Every rendered page is parsed as XML by Runner.check.
         run.check(client, 'GET', f'/games/{GAME_ID}', 200,
-                  contains=['smoke.jar', 'Bytes', '&lt;b&gt;x&lt;/b&gt;', 'Line one<br/>Line two'],
-                  lacks='<b>x</b>')
+                  contains=['smoke.sis', 'smoke.sisx', 'Bytes', '&lt;b&gt;x&lt;/b&gt;',
+                            'Line one<br/>Line two',
+                            'content="text/html; charset=UTF-8"'],
+                  lacks=['<b>x</b>', '\x19'])
         with patch.object(helpers, 'file_size', wraps=helpers.file_size) as file_size:
             run.check(client, 'GET', f'/games/{GAME_ID}/screen/240x320', 200, lacks='320x240')
         checked_files = [call.args[0] for call in file_size.call_args_list]
         run.verify('single-resolution file size lookups', lambda: [
-            f'expected lookups only for smoke.jar and smoke.jad, got {checked_files}'
-        ] if checked_files != ['smoke.jar', 'smoke.jad'] else [])
+            f'expected lookups only for smoke.jar, smoke.jad, smoke.sis and smoke.sisx, got {checked_files}'
+        ] if checked_files != ['smoke.jar', 'smoke.jad', 'smoke.sis', 'smoke.sisx'] else [])
         run.check(client, 'GET', f'/games/{GAME_ID}/screen/320x240', 200,
                   contains='href="#" class="bluelink"', lacks='/static/content/files/None')
         run.check(client, 'GET', f'/games/{OTHER_ID}/screen/240x320', 200,
@@ -469,6 +478,14 @@ def run_checks():
         run.check(client, 'GET', '/static/content/files/smoke.jad', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'files', 'smoke.jad')],
                   headers={'Content-Type': 'text/vnd.sun.j2me.app-descriptor; charset=utf-8'})
+        # Phones pick the installer by Content-Type, so the image must set
+        # these itself rather than rely on the host's /etc/mime.types.
+        run.check(client, 'GET', '/static/content/files/smoke.sis', 200,
+                  body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'files', 'smoke.sis')],
+                  headers={'Content-Type': 'application/vnd.symbian.install'})
+        run.check(client, 'GET', '/static/content/files/smoke.sisx', 200,
+                  body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'files', 'smoke.sisx')],
+                  headers={'Content-Type': 'x-epoc/x-sisx-app'})
         run.check(client, 'GET', '/static/content/images/splashes/smoke.png', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'images', 'splashes', 'smoke.png')])
         run.check(client, 'GET', '/robots.txt', 404 if config['allow_indexing'] else 200)

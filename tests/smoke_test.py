@@ -260,6 +260,11 @@ def run_checks():
         run.check(client, 'GET', '/', 302, location='/games')
         run.check(client, 'GET', '/games', 200, contains=f'/games/{GAME_ID}/screens')
 
+        # Missing games and resolutions must get Dedo's XHTML-MP error page, not
+        # a Werkzeug page and never a 500.
+        run.check(client, 'GET', '/games/999999', 404, contains='Not found', lacks='Werkzeug')
+        run.check(client, 'GET', f'/games/{GAME_ID}/screen/999x999', 404)
+
         run.check(client, 'GET', f'/games/{GAME_ID}/screens', 200, contains='240x320')
         run.check(client, 'GET', f'/games/{GAME_ID}', 200, contains=['smoke.jar', 'Bytes'])
         run.check(client, 'GET', f'/games/{GAME_ID}/screen/240x320', 200, lacks='320x240')
@@ -281,6 +286,9 @@ def run_checks():
 
         run.check(client, 'GET', '/games/top', 200)
         run.check(client, 'GET', '/games/top/page/1', 200)
+        # Out-of-range pages go back to the first/last page instead of 500.
+        run.check(client, 'GET', '/games/top/page/0', 302, location_exact='/games/top')
+        run.check(client, 'GET', '/games/top/page/99', 302, location_exact='/games/top')
         run.check(client, 'GET', '/games/latest', 200, contains=OTHER_TITLE)
 
         run.check(client, 'GET', '/games/vendors', 200)
@@ -292,6 +300,7 @@ def run_checks():
 
         run.check(client, 'GET', '/games/browse', 200)
         run.check(client, 'GET', '/games/browse/page/1', 200)
+        run.check(client, 'GET', '/games/browse/page/0', 302, location_exact='/games/browse')
 
         run.check(client, 'GET', '/static/css/style.css', 200,
                   headers={'Cache-Control': 'public, max-age=86400'})

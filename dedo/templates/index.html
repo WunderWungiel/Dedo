@@ -16,30 +16,30 @@
         <div class="ANDROID">Can't Find What You Want?</div>
 
         <div style="margin-top: 1px; margin-bottom: -4px">
-            <a href="{{ url_for('game_resolutions', id=random_game['id']) }}"><img src="{{ url_for('static', filename='content/images/banners/' ~ random_game['id'] ~ '.jpg') }}" width="100%" alt="banner"/></a>
+            <a href="{{ url_for('store.game_resolutions', id=random_game['id']) }}"><img src="{{ url_for('static', filename='content/images/banners/' ~ random_game['id'] ~ '.jpg') }}" width="100%" alt="banner"/></a>
         </div>
         
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('search') }}" class="bluelink">Search Games</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.search') }}" class="bluelink">Search Games</a>
         </div>
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('browse_games') }}" class="bluelink">All games</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.browse_games') }}" class="bluelink">All games</a>
         </div>
         <!-- <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('latest_games') }}" class="bluelink">Latest 15 Games</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.latest_games') }}" class="bluelink">Latest 15 Games</a>
         </div> -->
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('top_games') }}" class="bluelink">TOP 50 Games</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.top_games') }}" class="bluelink">TOP 50 Games</a>
         </div>
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('vendors') }}" class="bluelink">Vendors</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.vendors') }}" class="bluelink">Vendors</a>
         </div>
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('games_resolutions') }}" class="bluelink">Resolutions</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.games_resolutions') }}" class="bluelink">Resolutions</a>
         </div>
     
         <div class="HLISTA" style="margin-top: 7px;">
-          <a href="{{ url_for('root') }}" class="bluelink">Home</a>
+          <a href="{{ url_for('store.root') }}" class="bluelink">Home</a>
         </div>
 
 	    <div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>

@@ -14,7 +14,7 @@
     <body>
         {% for vendor in results %}
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"> <a href="{{ url_for('vendor_games', vendor=vendor) }}" class="bluelink">{{ vendor }}</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"> <a href="{{ url_for('store.vendor_games', vendor=vendor) }}" class="bluelink">{{ vendor }}</a>
         </div>
         {% endfor %}
 
@@ -24,22 +24,22 @@
         
         <div class="PAGES" style="margin-top: 7px; margin-bottom: -6px;">
             {% if pages['current'] > 1 %}
-            <a href="{{ url_for('vendors', page=pages['first']) }}" class="PAGES2">&#171;&#171;</a> | 
-            <a href="{{ url_for('vendors', page=pages['previous']) }}" class="PAGES2">&#171;prev</a>
+            <a href="{{ url_for('store.vendors', page=pages['first']) }}" class="PAGES2">&#171;&#171;</a> | 
+            <a href="{{ url_for('store.vendors', page=pages['previous']) }}" class="PAGES2">&#171;prev</a>
             {% endif %}
             {% if pages['current'] > pages['first'] and pages['current'] < pages['last'] %}
             |
             {% endif %}
             {% if pages['current'] != pages['last'] %}
-            <a href="{{ url_for('vendors', page=pages['next']) }}" class="PAGES2">next&#x00BB;</a> |
-            <a href="{{ url_for('vendors', page=pages['last']) }}" class="PAGES2">&#x00BB;&#x00BB;</a>
+            <a href="{{ url_for('store.vendors', page=pages['next']) }}" class="PAGES2">next&#x00BB;</a> |
+            <a href="{{ url_for('store.vendors', page=pages['last']) }}" class="PAGES2">&#x00BB;&#x00BB;</a>
             {% endif %}
         </div>
 
         {% endif %}
 
         <div class="HLISTA" style="margin-top: 7px;">
-            <a href="{{ url_for('root') }}" class="bluelink">Home</a>
+            <a href="{{ url_for('store.root') }}" class="bluelink">Home</a>
         </div>
 
       	<div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>

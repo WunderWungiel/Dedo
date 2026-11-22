@@ -1,15 +1,13 @@
 import atexit
-import os
-import math
 from datetime import datetime
 
-from flask import Flask, redirect, render_template, url_for, send_from_directory, request
-import humanize
+from flask import Flask, render_template, request, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import config
 from . import cli, db
 from .blueprints.api import api as api_blueprint
+from .blueprints.store import store as store_blueprint
 
 atexit.register(db.client.close)
 
@@ -21,17 +19,9 @@ app.wsgi_app = ProxyFix(
 )
 
 app.register_blueprint(api_blueprint)
+app.register_blueprint(store_blueprint)
 app.cli.add_command(cli.create_indexes)
 
-def generate_pages(page, total_pages):
-    return {
-        'current': page,
-        'next': page + 1 if page < total_pages else None,
-        'previous': page - 1 if page > 1 else None,
-        'first': 1,
-        'last': total_pages,
-        'total': total_pages
-    }
 
 @app.context_processor
 def utility_processor():
@@ -39,217 +29,30 @@ def utility_processor():
         now=datetime.now()
     )
 
-@app.route("/")
-def root():
-    return redirect(url_for('games'))
 
-@app.route("/games")
-def games():
-    
-    random_game = db.get_random_game(banner=True)
+@app.errorhandler(404)
+def not_found(e):
+    if request.endpoint == 'static':
+        return e
+    return render_template(
+        "error.html",
+        title="Not found",
+        message="The page you asked for does not exist.",
+        show_navigation=True
+    ), 404
+
+
+@app.errorhandler(500)
+def server_error(e):
+    if request.endpoint == 'static':
+        return e
+    return render_template(
+        "error.html",
+        title="Server error",
+        message="Something went wrong. Please try again later.",
+        show_navigation=False
+    ), 500
 
-    return render_template("index.html", random_game=random_game)
-
-@app.route("/games/<int:id>/screens")
-def game_resolutions(id):
-
-    game = db.get_game(id)
-
-    return render_template("resolutions.html", game=game)
-
-@app.route("/games/<int:id>")
-@app.route("/games/<int:id>/screen/<resolution>")
-def game_resolution(id, resolution=None):
-    
-    game = db.get_game(id)
-
-    resolutions_to_use = [resolution] if resolution else game['resolutions'].keys()
-
-    for temp_resolution in resolutions_to_use:
-        for model, files in game['resolutions'][temp_resolution].items():
-            for i, file in enumerate(files):
-                if not file.get('filename'):
-                    size = 0
-                else:
-                    path = os.path.join("static", "content", "files", file['filename'])
-                    size = os.path.getsize(path) if os.path.isfile(path) else 0
-                game['resolutions'][temp_resolution][model][i]['size'] = humanize.naturalsize(size)
-
-    return render_template("game.html", game=game, resolution=resolution)
-
-@app.route("/games/search", methods=['GET', 'POST'])
-def search():
-
-    if request.method == 'GET':
-        return render_template("search.html", text=request.args.get('text'))
-    
-    elif request.method == 'POST':
-
-        query = request.form.get('q')
-
-        if not query:
-            return redirect(url_for('root'))
-
-        return redirect(url_for('search_query', query=query, page=1))
-
-@app.route("/games/search/<query>")
-@app.route("/games/search/<query>/page/<int:page>")
-def search_query(query, page=None):
-
-    page = page or 1
-
-    if page < 1:
-        return redirect(url_for(request.endpoint, query=query))
-    
-    results, total = db.search(query, page=page, return_total=True)
-
-    if not total:
-        return redirect(url_for('search', text="No matches found!"))
-
-    total_pages = max(1, math.ceil(total / config['per_page']))
-
-    if page > total_pages:
-        return redirect(url_for(request.endpoint, query=query))
-
-    pages = generate_pages(page, total_pages)
-
-    return render_template("search_results.html", results=results, query=query, pages=pages)
-
-@app.route("/games/top")
-@app.route("/games/top/page/<int:page>")
-def top_games(page=None):
-
-    page = page or 1
-
-    if page < 1:
-        return redirect(url_for(request.endpoint))
-
-    results, total = db.get_games(sort='downloads', limit=50, page=page, return_count=True)
-
-    if not total:
-        return redirect(url_for('root'))
-    
-    total_pages = max(1, math.ceil(total / config['per_page']))
-
-    if page > total_pages:
-        return redirect(url_for(request.endpoint))
-
-    pages = generate_pages(page, total_pages)
-    
-    return render_template("list.html", endpoint=request.endpoint, results=results, text="TOP 50 games", pages=pages)
-
-@app.route("/games/latest")
-def latest_games():
-
-    results = db.get_games(sort='id', limit=15)
-
-    pages = generate_pages(page=1, total_pages=1)
-
-    return render_template("list.html", endpoint=request.endpoint, results=results, text="Latest games", pages=pages)
-
-@app.route("/games/vendors")
-@app.route("/games/vendors/page/<int:page>")
-def vendors(page=None):
-
-    page = page or 1
-
-    if page < 1:
-        return redirect(url_for(request.endpoint))
-    
-    results = db.get_vendors()
-    total = len(results)
-
-    if not total:
-        return redirect(url_for('root'))
-    
-    total_pages = max(1, math.ceil(total / config['per_page']))
-
-    if page > total_pages:
-        return redirect(url_for(request.endpoint))
-    
-    first_index = (page - 1) * config['per_page']
-    last_index = first_index + config['per_page']
-
-    paged_results = results[first_index:last_index]
-    pages = generate_pages(page, total_pages)
-    
-    return render_template("vendors.html", results=paged_results, text="Latest games", pages=pages)
-
-@app.route("/games/vendor/<vendor>")
-@app.route("/games/vendor/<vendor>/page/<int:page>")
-def vendor_games(vendor, page=None):
-
-    page = page or 1
-
-    if page < 1:
-        return redirect(url_for(request.endpoint, vendor=vendor))
-
-    results, total = db.get_games(conditions={'vendor': vendor}, page=page, return_count=True)
-
-    if not total:
-        return redirect(url_for('vendors'))
-    
-    total_pages = max(1, math.ceil(total / config['per_page']))
-
-    if page > total_pages:
-        return redirect(url_for(request.endpoint, vendor=vendor))
-
-    pages = generate_pages(page, total_pages)
-
-    return render_template("list.html", endpoint=request.endpoint, results=results, text=vendor, url_args={'vendor': vendor}, pages=pages)
-
-@app.route("/games/screens")
-def games_resolutions():
-
-    resolutions = db.get_resolutions()
-
-    return render_template("resolutions_list.html", resolutions=resolutions)
-
-@app.route("/games/screen/<resolution>")
-@app.route("/games/screen/<resolution>/page/<int:page>")
-def resolution_games(resolution, page=None):
-
-    page = page or 1
-
-    if page < 1:
-        return redirect(url_for(request.endpoint, resolution=resolution))
-
-    results, total = db.get_games(resolution=resolution, page=page, return_count=True)
-
-    if not total:
-        return redirect(url_for('games_resolutions'))
-    
-    total_pages = max(1, math.ceil(total / config['per_page']))
-
-    if page > total_pages:
-        return redirect(url_for(request.endpoint, resolution=resolution))
-
-    pages = generate_pages(page, total_pages)
-    
-    return render_template("list.html", endpoint=request.endpoint, results=results, text=f"{resolution} games", url_args={'resolution': resolution}, pages=pages)
-
-@app.route("/games/browse")
-@app.route("/games/browse/page/<int:page>")
-def browse_games(page=None):
-
-    page = page or 1
-
-    if page < 1:
-        return redirect(url_for(request.endpoint))
-
-    results, total = db.get_games(page=page, return_count=True)
-
-    if not total:
-        return redirect(url_for('root'))
-    
-    total_pages = max(1, math.ceil(total / config['per_page']))
-
-    if page > total_pages:
-        return redirect(url_for(request.endpoint))
-
-    pages = generate_pages(page, total_pages)
-    
-    return render_template("list.html", endpoint=request.endpoint, results=results, text="All games", pages=pages)
 
 if not config['allow_indexing']:
     @app.route("/robots.txt")

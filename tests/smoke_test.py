@@ -165,8 +165,8 @@ def check_cache():
     return problems
 
 
-def check_api_sizes(client):
-    response = client.get(f'/api/v1/game/?id={GAME_ID}&resolution=240x320')
+def check_api_sizes(client, game_url):
+    response = client.get(game_url)
     if response.status_code != 200:
         return [f"status {response.status_code}, expected 200"]
     files = (response.get_json() or {}).get('files', {})
@@ -290,6 +290,11 @@ class Runner:
 
 def run_checks():
     run = Runner()
+    api_prefix = config['api_prefix'].rstrip('/')
+    api_game_url = f'{api_prefix}/game/?id={GAME_ID}&resolution=240x320'
+    per_page = config['per_page']
+    last_top_page = (len(FIXTURES) + per_page - 1) // per_page
+    last_top_url = '/games/top' if last_top_page == 1 else f'/games/top/page/{last_top_page}'
 
     with app.test_client() as client:
         run.check(client, 'GET', '/', 302, location='/games')
@@ -337,7 +342,7 @@ def run_checks():
         run.check(client, 'GET', '/games/top/page/1', 200)
         # Out-of-range pages go back to the first/last page instead of 500.
         run.check(client, 'GET', '/games/top/page/0', 302, location_exact='/games/top')
-        run.check(client, 'GET', '/games/top/page/99', 302, location_exact='/games/top')
+        run.check(client, 'GET', '/games/top/page/99', 302, location_exact=last_top_url)
         run.verify('Top 50 caps the partial final page', lambda: check_top_50_limit(client))
         run.check(client, 'GET', '/games/latest', 200, contains=OTHER_TITLE)
 
@@ -365,24 +370,24 @@ def run_checks():
                   headers={'Content-Type': 'text/vnd.sun.j2me.app-descriptor; charset=utf-8'})
         run.check(client, 'GET', '/static/content/images/splashes/smoke.png', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'images', 'splashes', 'smoke.png')])
-        run.check(client, 'GET', '/robots.txt', 200)
+        run.check(client, 'GET', '/robots.txt', 404 if config['allow_indexing'] else 200)
         run.check(client, 'GET', '/healthz', 200, body_equals=b'ok',
                   headers={'Content-Type': 'text/plain',
                            'Cache-Control': 'no-store'})
 
-        run.check(client, 'GET', '/api/v1/resolutions/', 200, api=True, json_contains='240x320')
-        run.check(client, 'GET', '/api/v1/vendors/?page=1', 200, api=True,
-                  json_keys=['results', 'total_pages', 'count'], json_contains=GAME_VENDOR)
-        run.check(client, 'GET', f'/api/v1/vendor/?name={quote(GAME_VENDOR)}&page=1', 200, api=True,
+        run.check(client, 'GET', f'{api_prefix}/resolutions/', 200, api=True, json_contains='240x320')
+        run.check(client, 'GET', f'{api_prefix}/vendors/?page=1', 200, api=True,
+                  json_keys=['results', 'total_pages', 'count'], json_contains=OTHER_VENDOR)
+        run.check(client, 'GET', f'{api_prefix}/vendor/?name={quote(GAME_VENDOR)}&page=1', 200, api=True,
                   json_keys=['results', 'total_pages', 'count'], result_title=GAME_TITLE)
-        run.check(client, 'GET', f'/api/v1/game/?id={GAME_ID}&resolution=240x320', 200, api=True,
+        run.check(client, 'GET', api_game_url, 200, api=True,
                   json_keys=['title', 'files'])
-        run.verify('api file sizes', lambda: check_api_sizes(client))
-        run.check(client, 'GET', f'/api/v1/game/resolutions/?id={GAME_ID}', 200, api=True,
+        run.verify('api file sizes', lambda: check_api_sizes(client, api_game_url))
+        run.check(client, 'GET', f'{api_prefix}/game/resolutions/?id={GAME_ID}', 200, api=True,
                   json_contains='240x320')
-        run.check(client, 'GET', '/api/v1/search/?q=smoke&page=1', 200, api=True,
+        run.check(client, 'GET', f'{api_prefix}/search/?q=smoke&page=1', 200, api=True,
                   json_keys=['results', 'total_pages', 'count'], result_title=GAME_TITLE)
-        run.check(client, 'GET', '/api/v1/resolution/?name=240x320&page=1', 200, api=True,
+        run.check(client, 'GET', f'{api_prefix}/resolution/?name=240x320&page=1', 200, api=True,
                   json_keys=['results', 'total_pages', 'count'], result_title=GAME_TITLE)
 
     run.verify('indexes', check_indexes)

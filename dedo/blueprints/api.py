@@ -1,11 +1,11 @@
 import math
 import os
 
-from flask import Blueprint, request, redirect, url_for, current_app
+from flask import Blueprint, request, redirect, url_for
 import humanize
 
 from ..config import config
-from .. import db
+from .. import db, helpers
 
 api = Blueprint('api', __name__, template_folder="templates", url_prefix=config['api_prefix'])
 
@@ -135,7 +135,7 @@ def game():
             if not file.get('filename'):
                 size = 0
             else:
-                path = os.path.join(current_app.static_folder, "content", "files", file['filename'])
+                path = helpers.get_content_path(file['filename'])
                 size = os.path.getsize(path) if os.path.isfile(path) else 0
             game['files'][model][i]['size'] = humanize.naturalsize(size)
 

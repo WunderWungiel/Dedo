@@ -101,6 +101,10 @@ def _validate(data):
 _validate(config)
 
 
+CONTENT_DIR = os.path.normpath(
+    os.path.join(ROOT_DIR, config.get('content_dir') or 'content'))
+
+
 MONGO_DB = MONGO['db']
 MONGO_HOST = MONGO.get('host') or 'localhost'
 MONGO_PORT = MONGO.get('port') or '27017'

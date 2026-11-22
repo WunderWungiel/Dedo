@@ -211,14 +211,14 @@ __marimo__/
 # Project-specific
 
 config.yaml
-dedo/static/content/images/banners/*
-!dedo/static/content/images/banners/.gitkeep
-dedo/static/content/images/screenshots/*
-!dedo/static/content/images/screenshots/.gitkeep
-dedo/static/content/images/splashes/*
-!dedo/static/content/images/splashes/.gitkeep
-dedo/static/content/files/*
-!dedo/static/content/files/.gitkeep
+content/images/banners/*
+!content/images/banners/.gitkeep
+content/images/screenshots/*
+!content/images/screenshots/.gitkeep
+content/images/splashes/*
+!content/images/splashes/.gitkeep
+content/files/*
+!content/files/.gitkeep
 
 # User Compose file
 compose.yaml

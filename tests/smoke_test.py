@@ -26,8 +26,7 @@ from xml.etree import ElementTree as ET
 
 from dedo import cache, db
 from dedo.app import app
-
-CONTENT_DIR = os.path.join(app.static_folder, "content")
+from dedo.config import CONTENT_DIR
 
 # Every collection the fixtures or the requests write to.
 COLLECTIONS = ['games']
@@ -162,6 +161,18 @@ def check_cache():
     if 'Cache Vendor' in db.get_vendors():
         problems.append("cache.clear did not reset get_vendors")
 
+    return problems
+
+
+def check_api_sizes(client):
+    response = client.get(f'/api/v1/game/?id={GAME_ID}&resolution=240x320')
+    if response.status_code != 200:
+        return [f"status {response.status_code}, expected 200"]
+    files = (response.get_json() or {}).get('files', {})
+    sizes = {file.get('filename'): file.get('size') for files in files.values() for file in files}
+    problems = []
+    if sizes.get('smoke.jar') in (None, '', '0 Bytes'):
+        problems.append(f"smoke.jar size is {sizes.get('smoke.jar')!r}")
     return problems
 
 
@@ -312,6 +323,8 @@ def run_checks():
                   headers={'Cache-Control': 'public, max-age=86400'})
         run.check(client, 'GET', '/static/content/files/smoke.jar', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'files', 'smoke.jar')])
+        run.check(client, 'GET', '/static/content/images/splashes/smoke.png', 200,
+                  body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'images', 'splashes', 'smoke.png')])
         run.check(client, 'GET', '/robots.txt', 200)
 
         run.check(client, 'GET', '/api/v1/resolutions/', 200, api=True, json_contains='240x320')
@@ -321,6 +334,7 @@ def run_checks():
                   json_keys=['results', 'total_pages', 'count'], result_title=GAME_TITLE)
         run.check(client, 'GET', f'/api/v1/game/?id={GAME_ID}&resolution=240x320', 200, api=True,
                   json_keys=['title', 'files'])
+        run.verify('api file sizes', lambda: check_api_sizes(client))
         run.check(client, 'GET', f'/api/v1/game/resolutions/?id={GAME_ID}', 200, api=True,
                   json_contains='240x320')
         run.check(client, 'GET', '/api/v1/search/?q=smoke&page=1', 200, api=True,

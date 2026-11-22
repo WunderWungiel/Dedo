@@ -4,12 +4,15 @@ from datetime import datetime
 from flask import Flask, render_template, request, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from .config import config
+from .config import CONTENT_DIR, config
 from . import cli, db, helpers
 from .blueprints.api import api as api_blueprint
 from .blueprints.store import store as store_blueprint
 
 atexit.register(db.client.close)
+
+# Endpoints that serve files, where a missing file is a plain 404, not a page.
+FILE_ENDPOINTS = {'static', 'content'}
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -35,9 +38,14 @@ def nl2br_filter(text):
     return helpers.nl2br(text)
 
 
+@app.route("/static/content/<path:filename>")
+def content(filename):
+    return send_from_directory(CONTENT_DIR, filename)
+
+
 @app.errorhandler(404)
 def not_found(e):
-    if request.endpoint == 'static':
+    if request.endpoint in FILE_ENDPOINTS:
         return e
     return render_template(
         "error.html",
@@ -49,7 +57,7 @@ def not_found(e):
 
 @app.errorhandler(500)
 def server_error(e):
-    if request.endpoint == 'static':
+    if request.endpoint in FILE_ENDPOINTS:
         return e
     return render_template(
         "error.html",

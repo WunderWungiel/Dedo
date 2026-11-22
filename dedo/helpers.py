@@ -2,8 +2,10 @@ import math
 import os
 
 import humanize
-from flask import current_app, redirect, url_for
+from flask import redirect, url_for
 from markupsafe import Markup, escape
+
+from .config import CONTENT_DIR
 
 
 def generate_pages(page, total_pages):
@@ -37,10 +39,14 @@ def paginate(page, total, fetch, endpoint, per_page, url_args=None):
     return fetch(page), generate_pages(page, total_pages), None
 
 
+def get_content_path(filename):
+    return os.path.join(CONTENT_DIR, "files", filename)
+
+
 def file_size(filename):
     if not filename:
         return 0
-    path = os.path.join(current_app.static_folder, "content", "files", filename)
+    path = get_content_path(filename)
     return os.path.getsize(path) if os.path.isfile(path) else 0
 
 

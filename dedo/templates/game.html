@@ -6,13 +6,13 @@
         <div class="NHRY">{{ game['title'] }}</div>
         {% if game['splash'] is defined %}
         <div class="SPLASH"> 
-            <a href="{{ url_for('static', filename='content/images/splashes/' ~ game['splash']) }}"><img src="{{ url_for('static', filename='content/images/splashes/' ~ game['splash']) }}" alt="." width="130" height="130" /></a>
+            <a href="{{ url_for('content', filename='images/splashes/' ~ game['splash']) }}"><img src="{{ url_for('content', filename='images/splashes/' ~ game['splash']) }}" alt="." width="130" height="130" /></a>
         </div>
         {% endif %}
   
         {% if game['screenshot'] is defined %}
         <div class="SECSCR">
-            <a href="{{ url_for('static', filename='content/images/screenshots/' ~ game['screenshot']) }}" class="bluelink">[second screenshot]</a>
+            <a href="{{ url_for('content', filename='images/screenshots/' ~ game['screenshot']) }}" class="bluelink">[second screenshot]</a>
         </div>
         {% endif %}
   
@@ -37,7 +37,7 @@
             <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" />
                 {% for file in files %}
                 {% if file['filename'] is defined %}
-                <a href="{{ url_for('static', filename='content/files/' ~ file['filename']) }}" class="bluelink">
+                <a href="{{ url_for('content', filename='files/' ~ file['filename']) }}" class="bluelink">
                 {% else %}
                 <a href="#" class="bluelink">
                 {% endif %}

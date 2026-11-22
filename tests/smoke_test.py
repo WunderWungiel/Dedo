@@ -199,24 +199,63 @@ def check_api_sizes(client, game_url):
     return problems
 
 
+TOP_50_MIXED = [
+    ('String 1469607', '1469607'),
+    ('String 9998', '9998'),
+    ('Integer 5000', 5000),
+    ('Integer 4000', 4000),
+    ('Integer 3000', 3000),
+    ('Tie A', 1000),
+    ('Tie B', 1000),
+    ('Tie C', 1000),
+    ('Tie D', 1000),
+    ('String 999', '999'),
+    ('Integer 999', 999),
+] + [(f'Count {count}', count) for count in range(900, 852, -1)] + [('Null count', None)]
+
+
 def check_top_50_limit(client):
     games = db.get_collection('games')
     documents = [
-        {'_id': ObjectId(), 'id': OTHER_ID + rank, 'title': f'Rank {rank}',
-         'downloads': 1000 - rank, 'date': FIXTURES[0]['date']}
-        for rank in range(1, 61)
+        {'_id': ObjectId(), 'id': OTHER_ID + rank, 'title': title,
+         'downloads': downloads, 'date': FIXTURES[0]['date']}
+        for rank, (title, downloads) in enumerate(TOP_50_MIXED, start=1)
     ]
+    # Numerical order, not BSON type order: strings and integers interleave,
+    # equal counts fall back to ascending id (the insertion order here), and
+    # null counts sort last.
+    expected = [title for title, _ in TOP_50_MIXED[:11]] + [
+        f'Count {count}' for count in range(900, 861, -1)
+    ]
+
+    def titles(response):
+        page = ET.fromstring(response.data)
+        return [link.text for link in page.findall('.//{*}div[@class="GMENU"]/{*}a')]
+
+    problems = []
     with ExitStack() as cleanup:
         cleanup.callback(games.delete_many, {'_id': {'$in': [document['_id'] for document in documents]}})
         games.insert_many(documents)
+        with patch.dict(config, per_page=50):
+            first = client.get('/games/top')
         with patch.dict(config, per_page=12):
-            response = client.get('/games/top/page/5')
+            fifth = client.get('/games/top/page/5')
 
-    if response.status_code != 200:
-        return [f'status {response.status_code}, expected 200']
-    page = ET.fromstring(response.data)
-    titles = [link.text for link in page.findall('.//{*}div[@class="GMENU"]/{*}a')]
-    return [f'expected ranks 49 and 50, got {titles}'] if titles != ['Rank 49', 'Rank 50'] else []
+    if first.status_code != 200:
+        problems.append(f'page 1 status {first.status_code}, expected 200')
+    else:
+        found = titles(first)
+        if found != expected:
+            problems.append(f'expected numerical order {expected}, got {found}')
+        if 'Null count' in found:
+            problems.append('null count appeared in the Top 50')
+    if fifth.status_code != 200:
+        problems.append(f'page 5 status {fifth.status_code}, expected 200')
+    else:
+        found = titles(fifth)
+        if found != expected[48:50]:
+            problems.append(f'expected ranks 49 and 50 {expected[48:50]}, got {found}')
+    return problems
 
 
 def check_game_image_links(client):

@@ -77,6 +77,33 @@ def count_search(query):
     return get_collection('games').count_documents({'title': regex})
 
 
+def get_top_games(page: int, limit: int = 50) -> list[dict]:
+    """Top games by numerical downloads, tie-broken by ascending id."""
+    per_page = config['per_page']
+    skip = (page - 1) * per_page
+    if skip >= limit:
+        return []
+
+    pipeline = [
+        {'$addFields': {
+            '_downloads': {
+                '$convert': {
+                    'input': '$downloads',
+                    'to': 'long',
+                    'onError': 0,
+                    'onNull': 0,
+                },
+            },
+        }},
+        {'$sort': {'_downloads': -1, 'id': 1}},
+        {'$limit': limit},
+        {'$skip': skip},
+        {'$limit': min(per_page, limit - skip)},
+        {'$project': {'_downloads': 0, 'resolutions': 0, '_id': 0}},
+    ]
+    return get_collection('games').aggregate(pipeline).to_list()
+
+
 def search(query, page=None, return_total=False):
 
     regex = _title_regex(query)

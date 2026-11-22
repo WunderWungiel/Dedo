@@ -92,7 +92,7 @@ def top_games(page=None):
         return redirect(url_for('store.root'))
 
     results, pages, redirect_response = helpers.paginate(
-        page, total, lambda page: db.get_games(sort='downloads', limit=50, page=page),
+        page, total, lambda page: db.get_top_games(page),
         request.endpoint, config['per_page'])
     if redirect_response:
         return redirect_response

@@ -123,8 +123,10 @@ class Runner:
             response = client.open(path, method=method, data=data, json=json_body)
             body = response.get_data()
             problems = []
-            if response.status_code != status:
-                problems.append(f"status {response.status_code}, expected {status}")
+            statuses = (status,) if isinstance(status, int) else tuple(status)
+            if response.status_code not in statuses:
+                expected = "/".join(str(value) for value in statuses)
+                problems.append(f"status {response.status_code}, expected {expected}")
             for text in ([contains] if isinstance(contains, (str, bytes)) else contains or []):
                 needle = text.encode() if isinstance(text, str) else text
                 if needle not in body:
@@ -200,6 +202,14 @@ def run_checks():
         run.check(client, 'POST', '/games/search', 302, location_exact='/', data={'q': ''})
         run.check(client, 'GET', '/games/search/Smoke', 200, contains=GAME_TITLE)
         run.check(client, 'GET', '/games/search/Smoke/page/2', 302, location_exact='/games/search/Smoke')
+
+        # Regex metacharacters and long input must not reach re.compile unescaped:
+        # no 500 and no runaway regex. A query with no match redirects, as before.
+        run.check(client, 'GET', '/games/search/%28', (200, 302))
+        run.check(client, 'GET', '/games/search/.%2A', (200, 302))
+        run.check(client, 'GET', '/games/search/' + quote(GAME_TITLE + ' ' * 190), 200,
+                  contains=GAME_TITLE)
+        run.check(client, 'GET', '/games/search/', 200, contains='name="q"')
 
         run.check(client, 'GET', '/games/top', 200)
         run.check(client, 'GET', '/games/top/page/1', 200)

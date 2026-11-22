@@ -1,3 +1,4 @@
+import atexit
 import os
 import math
 from datetime import datetime
@@ -9,6 +10,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from .config import config
 from . import db
 from .blueprints.api import api as api_blueprint
+
+atexit.register(db.client.close)
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False

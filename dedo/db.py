@@ -2,16 +2,61 @@ import re
 
 import pymongo
 
-from .config import MONGO_URI, config
-client = pymongo.MongoClient(MONGO_URI)
+from .config import MONGO_DB, MONGO_URI, config
+
+# Only these fields may be used as a sort key; the value is the stored name.
+SORT_FIELDS = {"downloads": "downloads", "id": "id"}
+
+client = pymongo.MongoClient(
+    MONGO_URI,
+    serverSelectionTimeoutMS=4000,
+    connectTimeoutMS=4000,
+)
+
 
 def get_collection(collection_name):
-    db = client.get_default_database()
-    return db.get_collection(collection_name)
+    return client[MONGO_DB].get_collection(collection_name)
+
+
+def _title_regex(query):
+    """Escape the user's text so it searches literally, or None when empty."""
+    query = (query or '').strip()[:100]
+    if not query:
+        return None
+    return re.compile(re.escape(query), re.IGNORECASE)
+
+
+def _game_conditions(conditions=None, resolution=None):
+    conditions = dict(conditions or {})
+    if resolution:
+        conditions[f'resolutions.{resolution}'] = {'$exists': True}
+    return conditions
+
+
+def ping():
+    client.admin.command("ping")
+
+
+def count_games(conditions=None, resolution=None, limit=None):
+    conditions = _game_conditions(conditions, resolution)
+    total = get_collection('games').count_documents(conditions)
+    if limit is not None:
+        total = min(total, limit)
+    return total
+
+
+def count_search(query):
+    regex = _title_regex(query)
+    if regex is None:
+        return 0
+    return get_collection('games').count_documents({'title': regex})
+
 
 def search(query, page=None, return_total=False):
 
-    regex = re.compile(query, re.IGNORECASE)
+    regex = _title_regex(query)
+    if regex is None:
+        return ([], 0) if return_total else []
 
     games_collection = get_collection('games')
     conditions = {'title': regex}
@@ -27,8 +72,7 @@ def search(query, page=None, return_total=False):
     results = [{**result, 'date': result['date'].strftime("%d.%m.%Y")} for result in results]
 
     if return_total:
-        total = games_collection.count_documents(conditions)
-        return results, total
+        return results, count_search(query)
 
     return results
 
@@ -51,13 +95,10 @@ def get_random_game(banner=None):
 
 def get_games(conditions=None, sort=None, limit=None, resolution=None, full_results=False, page=None, return_count=False):
 
-    conditions = conditions or {}
-
-    if resolution:
-        conditions[f'resolutions.{resolution}'] = {'$exists': True}
+    conditions = _game_conditions(conditions, resolution)
 
     games_collection = get_collection('games')
-    
+
     projection = {'_id': 0}
 
     if not full_results:
@@ -66,7 +107,9 @@ def get_games(conditions=None, sort=None, limit=None, resolution=None, full_resu
     cursor = games_collection.find(conditions, projection)
 
     if sort is not None:
-        cursor = cursor.sort(sort, -1)
+        if sort not in SORT_FIELDS:
+            raise ValueError(f"Unsupported sort: {sort}")
+        cursor = cursor.sort(SORT_FIELDS[sort], -1)
 
     if limit is not None:
         cursor = cursor.limit(limit)
@@ -78,13 +121,7 @@ def get_games(conditions=None, sort=None, limit=None, resolution=None, full_resu
     results = cursor.to_list()
 
     if return_count:
-
-        total = games_collection.count_documents(conditions)
-
-        if limit is not None:
-            total = min(total, limit)
-
-        return results, total
+        return results, count_games(conditions, limit=limit)
 
     return results
 
@@ -98,14 +135,8 @@ def get_game(id):
     return result
 
 def get_vendors():
-
-    games_collection = get_collection('games')
-    cursor = games_collection.find({}, {'_id': 0, 'vendor': 1})
-    results = cursor.to_list()
-
-    vendors = [result['vendor'] for result in results]
-
-    return list(set(vendors))
+    vendors = client[MONGO_DB].games.distinct("vendor")
+    return sorted(vendor for vendor in vendors if vendor)
 
 def get_resolutions():
     games_collection = get_collection('games')

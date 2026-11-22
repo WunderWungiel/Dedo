@@ -8,8 +8,8 @@ Run it against a throwaway database:
 The script fills the empty games collection with a small set of fixtures and
 writes the files they reference under the content directory, requests each web
 page and the frozen JSON API through the Flask test client, then deletes the
-fixture documents and files. It refuses to run if the games collection already
-holds documents or a fixture file already exists, so it can't touch real data.
+fixture documents and files it created. It refuses to run if the games
+collection already holds documents or a fixture file already exists.
 
 Run it from the repo root. DEDO_CONFIG can name a config file other than the
 repo root's config.yaml.
@@ -20,9 +20,13 @@ Exit status is 0 when every check passes and 1 otherwise.
 import os
 import sys
 import traceback
+from contextlib import ExitStack
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import quote
 from xml.etree import ElementTree as ET
+
+from bson import ObjectId
 
 from dedo import cache, db
 from dedo.app import app
@@ -89,24 +93,20 @@ def check_empty():
         sys.exit(f"Refusing to run: fixture files already exist: {', '.join(existing)}")
 
 
-def seed():
+def seed(cleanup):
     db.create_indexes()
 
     for path, data in FIXTURE_FILES.items():
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'xb') as destination:
+            cleanup.callback(Path(path).unlink, missing_ok=True)
             destination.write(data)
 
-    db.get_collection('games').insert_many(FIXTURES)
-
-
-def cleanup():
-    db.get_collection('games').delete_many({'id': {'$in': [GAME_ID, OTHER_ID]}})
-    for path in FIXTURE_FILES:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
+    games = db.get_collection('games')
+    documents = [dict(fixture, _id=ObjectId()) for fixture in FIXTURES]
+    # Register before writing so a partial insert can be cleaned up too.
+    cleanup.callback(games.delete_many, {'_id': {'$in': [document['_id'] for document in documents]}})
+    games.insert_many(documents)
 
 
 def check_indexes():
@@ -149,12 +149,12 @@ def check_cache():
     games = db.get_collection('games')
     cache.clear()
     baseline = db.get_vendors()
-    extra_id = GAME_ID + 2
-    games.insert_one({'id': extra_id, 'vendor': 'Cache Vendor'})
+    extra = {'_id': ObjectId(), 'id': GAME_ID + 2, 'vendor': 'Cache Vendor'}
     try:
+        games.insert_one(extra)
         cached = db.get_vendors()
     finally:
-        games.delete_one({'id': extra_id})
+        games.delete_one({'_id': extra['_id']})
     if cached != baseline:
         problems.append("get_vendors did not serve the cached list")
     cache.clear()
@@ -355,12 +355,12 @@ def run_checks():
 
 def main():
     app.config['TESTING'] = True
-    check_empty()
     try:
-        seed()
-        passed = run_checks()
+        check_empty()
+        with ExitStack() as cleanup:
+            seed(cleanup)
+            passed = run_checks()
     finally:
-        cleanup()
         db.client.close()
     sys.exit(0 if passed else 1)
 

@@ -5,8 +5,9 @@ from datetime import datetime
 from flask import Flask, redirect, render_template, url_for, send_from_directory, request
 import humanize
 
-from lib import config, db
-from lib import api_blueprint
+from .config import config
+from . import db
+from .blueprints.api import api as api_blueprint
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False

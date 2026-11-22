@@ -4,7 +4,8 @@ import os
 from flask import Blueprint, request, redirect, url_for, current_app
 import humanize
 
-from . import config, db
+from ..config import config
+from .. import db
 
 api = Blueprint('api', __name__, template_folder="templates", url_prefix=config['api_prefix'])
 

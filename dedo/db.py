@@ -2,7 +2,7 @@ import re
 
 import pymongo
 
-from . import config
+from .config import config
 client = pymongo.MongoClient(config['mongodb_uri'])
 
 def get_collection(collection_name):

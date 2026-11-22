@@ -1,6 +1,6 @@
 FROM python:3-bookworm
-WORKDIR /app
-COPY ./app/requirements.txt .
+WORKDIR /srv
+COPY ./requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY ./app/ .
-ENTRYPOINT ["./entrypoint.sh"]
+COPY ./dedo/ ./dedo/
+CMD ["gunicorn", "--workers", "8", "--bind", "0.0.0.0:80", "dedo.app:app"]

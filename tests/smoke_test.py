@@ -343,6 +343,9 @@ def run_checks():
         run.check(client, 'GET', '/games/screens', 200)
         run.check(client, 'GET', '/games/screen/240x320', 200, contains=GAME_TITLE)
         run.check(client, 'GET', '/games/screen/240x320/page/1', 200)
+        run.check(client, 'GET', '/games/screen/999x999', 404, contains='Not found')
+        run.check(client, 'GET', '/games/screen/999x999/page/2', 404, contains='Not found')
+        run.check(client, 'GET', '/games/screen/240x320.Nokia', 404, contains='Not found')
 
         run.check(client, 'GET', '/games/browse', 200)
         run.check(client, 'GET', '/games/browse/page/1', 200)

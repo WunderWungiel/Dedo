@@ -166,11 +166,15 @@ def games_resolutions():
 @store.route("/games/screen/<resolution>/page/<int:page>")
 def resolution_games(resolution, page=None):
 
+    # The database lookup uses dot notation for resolution keys.
+    if '.' in resolution:
+        abort(404)
+
     page = page if page is not None else 1
     total = db.count_games(resolution=resolution)
 
     if not total:
-        return redirect(url_for('store.games_resolutions'))
+        abort(404)
 
     results, pages, redirect_response = helpers.paginate(
         page, total, lambda page: db.get_games(resolution=resolution, page=page),

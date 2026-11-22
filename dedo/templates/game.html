@@ -6,18 +6,18 @@
         <div class="NHRY">{{ game['title'] }}</div>
         {% set splash = game['splash'] | image_filename %}
         {% if splash %}
-        <div class="SPLASH"> 
+        <div class="SPLASH">
             <a href="{{ url_for('content', filename='images/splashes/' ~ splash) }}"><img src="{{ url_for('content', filename='images/splashes/' ~ splash) }}" alt="." width="130" height="130" /></a>
         </div>
         {% endif %}
-  
+
         {% set screenshot = game['screenshot'] | image_filename %}
         {% if screenshot %}
         <div class="SECSCR">
             <a href="{{ url_for('content', filename='images/screenshots/' ~ screenshot) }}" class="bluelink">[second screenshot]</a>
         </div>
         {% endif %}
-  
+
         <div class="OPIS"><img src="{{ url_for('static', filename='images/arrow-red.gif') }}" alt="." class="icon_img" /> <b>Added</b>: {{ game['date'] }}<br/></div>
         <div class="OPIS"><img src="{{ url_for('static', filename='images/arrow-red.gif') }}" alt="." class="icon_img" /> <b>Downloads</b>: {{ game['downloads'] }}</div>
         <div class="OPIS"><img src="{{ url_for('static', filename='images/arrow-red.gif') }}" alt="." class="icon_img" /> <b>Vendor</b>: {{ game['vendor'] }}</div>
@@ -25,7 +25,7 @@
         <div style="margin-bottom: 15px; margin-left: 5px; font-family: Times New Roman; font-size: small; color: #000033">
             <img src="{{ url_for('static', filename='images/arrow-red.gif') }}" alt="." class="icon_img" /> <b>Description</b>: {{ game['description'] | nl2br }}
         </div>
-  
+
         {% set resolutions_to_use = [resolution] if resolution else game['resolutions'].keys() %}
 
         {% for resolution in resolutions_to_use %}

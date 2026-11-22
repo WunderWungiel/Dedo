@@ -2,7 +2,7 @@
 
         <div class="PAGES" style="margin-top: 7px; margin-bottom: -6px;">
             {% if pages['current'] > 1 %}
-            <a href="{{ url_for(endpoint, page=pages['first'], **(url_args or {})) }}" class="PAGES2">&#171;&#171;</a> | 
+            <a href="{{ url_for(endpoint, page=pages['first'], **(url_args or {})) }}" class="PAGES2">&#171;&#171;</a> |
             <a href="{{ url_for(endpoint, page=pages['previous'], **(url_args or {})) }}" class="PAGES2">&#171;prev</a>
             {% endif %}
             {% if pages['current'] > pages['first'] and pages['current'] < pages['last'] %}

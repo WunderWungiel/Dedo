@@ -7,7 +7,7 @@
 
             {% for resolution in game['resolutions'].keys() %}
             <div class="GMENU">
-              <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /> <a href="{{ url_for('store.game_resolution', id=game['id'], resolution=resolution) }}" class="bluelink">{{ resolution }}</a> 
+              <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /> <a href="{{ url_for('store.game_resolution', id=game['id'], resolution=resolution) }}" class="bluelink">{{ resolution }}</a>
             </div>
             {% endfor %}
 {% endblock %}

@@ -30,6 +30,7 @@ from unittest.mock import patch
 from xml.etree import ElementTree as ET
 
 from bson import ObjectId
+from pymongo.errors import PyMongoError
 
 from dedo import cache, db, helpers
 from dedo.app import app
@@ -50,6 +51,7 @@ GAME_VENDOR = "Smoke Vendor"
 OTHER_VENDOR = "Other Vendor"
 MISSING_VENDOR = "Missing Vendor"
 SLASH_VENDOR = "Hugo Games A/S"
+PAGE_VENDOR = "Page Vendor"
 
 FIXTURE_FILES = {
     os.path.join(CONTENT_DIR, "files", "smoke.jar"): b"PK\x03\x04smoke-jar-fixture",
@@ -476,6 +478,65 @@ def check_slash_routes(client):
     return problems
 
 
+def check_vendor_pagination(client):
+    """Both vendor routes page through a vendor's games."""
+    games = db.get_collection('games')
+    documents = [
+        {'_id': ObjectId(), 'id': OTHER_ID + 300 + number,
+         'title': f'Page Vendor Game {number:02d}', 'vendor': PAGE_VENDOR,
+         'downloads': 1, 'date': FIXTURES[0]['date'], 'banner': False,
+         'resolutions': {'240x320': {'Nokia': [{'type': 'jar'}]}}}
+        for number in range(1, 13)
+    ]
+    expected = {f'Page Vendor Game {number:02d}' for number in range(6, 11)}
+
+    problems = []
+    with ExitStack() as cleanup:
+        cleanup.callback(games.delete_many, {'_id': {'$in': [document['_id'] for document in documents]}})
+        games.insert_many(documents)
+        with patch.dict(config, per_page=5):
+            for url in (f'/games/vendor/{quote(PAGE_VENDOR)}/page/2',
+                        f'/games/vendor?name={quote(PAGE_VENDOR)}&page=2'):
+                response = client.get(url)
+                if response.status_code != 200:
+                    problems.append(f'{url} returned {response.status_code}')
+                    continue
+                page = ET.fromstring(response.data)
+                found = {link.text for link in page.findall('.//{*}div[@class="GMENU"]/{*}a')}
+                if found != expected:
+                    problems.append(f'{url} shows {sorted(found)}, expected {sorted(expected)}')
+    return problems
+
+
+def check_bare_missing_file(client):
+    """A missing content file is a bare 404, not a rendered Dedo page."""
+    response = client.get('/static/content/files/does-not-exist.sis')
+    problems = []
+    if response.status_code != 404:
+        problems.append(f'status {response.status_code}, expected 404')
+    if b'class="NHRY"' in response.data:
+        problems.append('missing file rendered the Dedo error page')
+    if b'Not Found' not in response.data:
+        problems.append('missing file did not return the bare 404 body')
+    return problems
+
+
+def check_healthz_unavailable(client):
+    """An unreachable database makes the health check report 503."""
+    with patch.object(db, 'ping', side_effect=PyMongoError('unavailable')):
+        response = client.get('/healthz')
+    problems = []
+    if response.status_code != 503:
+        problems.append(f'status {response.status_code}, expected 503')
+    if response.data != b'db unavailable':
+        problems.append(f'body {response.data!r}, expected b"db unavailable"')
+    if response.headers.get('Content-Type') != 'text/plain':
+        problems.append(f'Content-Type {response.headers.get("Content-Type")!r}')
+    if response.headers.get('Cache-Control') != 'no-store':
+        problems.append(f'Cache-Control {response.headers.get("Cache-Control")!r}')
+    return problems
+
+
 def check_description_rendering(client):
     """A missing or non-string description must not break the game page."""
     problems = []
@@ -643,6 +704,8 @@ def run_checks():
     run.verify('config validation', check_config_validation)
     api_prefix = config['api_prefix'].rstrip('/')
     api_game_url = f'{api_prefix}/game/?id={GAME_ID}&resolution=240x320'
+    # The vendor list is sorted, so a small per_page puts Other Vendor on a later page.
+    vendor_page = db.get_vendors().index(OTHER_VENDOR) // config['per_page'] + 1
     per_page = config['per_page']
     last_top_page = (len(FIXTURES) + per_page - 1) // per_page
     last_top_url = '/games/top' if last_top_page == 1 else f'/games/top/page/{last_top_page}'
@@ -688,11 +751,15 @@ def run_checks():
         run.check(client, 'GET', '/games/search/Smoke/page/2', 302, location_exact='/games/search/Smoke')
 
         # Regex metacharacters and long input must not reach re.compile unescaped:
-        # no 500 and no runaway regex. A query with no match redirects, as before.
-        run.check(client, 'GET', '/games/search/%28', (200, 302))
-        run.check(client, 'GET', '/games/search/.%2A', (200, 302))
+        # no 500 and no runaway regex. A literal query with no match redirects,
+        # while a pattern treated as a regex would match both fixtures.
+        run.check(client, 'GET', '/games/search/%28', 302, location='No+matches+found')
+        run.check(client, 'GET', '/games/search/.%2A', 302, location='No+matches+found')
         run.check(client, 'GET', '/games/search/' + quote(GAME_TITLE + ' ' * 190), 200,
                   contains=GAME_TITLE)
+        # More than 100 non-whitespace characters, all regex metacharacters.
+        run.check(client, 'GET', '/games/search/' + quote('(' * 120), 302,
+                  location='No+matches+found')
         run.check(client, 'GET', '/games/search/', 200, contains='name="q"')
 
         run.check(client, 'GET', '/games/top', 200)
@@ -706,6 +773,7 @@ def run_checks():
         run.check(client, 'GET', '/games/vendors', 200)
         run.check(client, 'GET', f'/games/vendor/{quote(GAME_VENDOR)}', 200, contains=GAME_TITLE)
         run.verify('slash routing', lambda: check_slash_routes(client))
+        run.verify('vendor pagination', lambda: check_vendor_pagination(client))
         run.verify('negative and past-the-end pages', lambda: check_negative_pages(client))
 
         run.check(client, 'GET', '/games/screens', 200)
@@ -737,13 +805,15 @@ def run_checks():
                   headers={'Content-Type': 'x-epoc/x-sisx-app'})
         run.check(client, 'GET', '/static/content/images/splashes/smoke.png', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'images', 'splashes', 'smoke.png')])
+        run.verify('bare missing content file', lambda: check_bare_missing_file(client))
         run.check(client, 'GET', '/robots.txt', 404 if config['allow_indexing'] else 200)
         run.check(client, 'GET', '/healthz', 200, body_equals=b'ok',
                   headers={'Content-Type': 'text/plain',
                            'Cache-Control': 'no-store'})
+        run.verify('health endpoint without Mongo', lambda: check_healthz_unavailable(client))
 
         run.check(client, 'GET', f'{api_prefix}/resolutions/', 200, api=True, json_contains='240x320')
-        run.check(client, 'GET', f'{api_prefix}/vendors/?page=1', 200, api=True,
+        run.check(client, 'GET', f'{api_prefix}/vendors/?page={vendor_page}', 200, api=True,
                   json_keys=['results', 'total_pages', 'count'], json_contains=OTHER_VENDOR)
         run.check(client, 'GET', f'{api_prefix}/vendor/?name={quote(GAME_VENDOR)}&page=1', 200, api=True,
                   json_keys=['results', 'total_pages', 'count'], result_title=GAME_TITLE)

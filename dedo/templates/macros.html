@@ -1,6 +1,6 @@
 {% macro game_row(result) %}
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/bullet.png') }}" alt="." class="icon_img" /> <a href="{{ url_for('store.game_resolutions', id=result['id']) }}" class="bluelink">{{ result['title'] }}</a> 
+            <img src="{{ url_for('static', filename='images/bullet.png') }}" alt="." class="icon_img" /> <a href="{{ url_for('store.game_resolutions', id=result['id']) }}" class="bluelink">{{ result['title'] }}</a>
             <span class="DATE">{{ result['date'] }}</span>
         </div>
 {% endmacro %}

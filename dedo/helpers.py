@@ -50,8 +50,10 @@ def file_size(filename):
     return os.path.getsize(path) if os.path.isfile(path) else 0
 
 
-def attach_file_sizes(game):
-    for models in game["resolutions"].values():
+def attach_file_sizes(game, resolution=None):
+    resolutions = game["resolutions"]
+    selected = resolutions.values() if resolution is None else (resolutions[resolution],)
+    for models in selected:
         for files in models.values():
             for file in files:
                 file["size"] = humanize.naturalsize(file_size(file.get("filename")))

@@ -29,7 +29,7 @@ from xml.etree import ElementTree as ET
 
 from bson import ObjectId
 
-from dedo import cache, db
+from dedo import cache, db, helpers
 from dedo.app import app
 from dedo.config import CONTENT_DIR, config
 
@@ -307,7 +307,12 @@ def run_checks():
         run.check(client, 'GET', f'/games/{GAME_ID}', 200,
                   contains=['smoke.jar', 'Bytes', '&lt;b&gt;x&lt;/b&gt;', 'Line one<br/>Line two'],
                   lacks='<b>x</b>')
-        run.check(client, 'GET', f'/games/{GAME_ID}/screen/240x320', 200, lacks='320x240')
+        with patch.object(helpers, 'file_size', wraps=helpers.file_size) as file_size:
+            run.check(client, 'GET', f'/games/{GAME_ID}/screen/240x320', 200, lacks='320x240')
+        checked_files = [call.args[0] for call in file_size.call_args_list]
+        run.verify('single-resolution file size lookups', lambda: [
+            f'expected lookups only for smoke.jar and smoke.jad, got {checked_files}'
+        ] if checked_files != ['smoke.jar', 'smoke.jad'] else [])
 
         run.check(client, 'GET', '/games/search', 200, contains='name="q"')
         run.check(client, 'POST', '/games/search', 302, location='/games/search/Smoke/page/1',

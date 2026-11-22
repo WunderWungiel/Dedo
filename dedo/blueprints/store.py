@@ -43,7 +43,7 @@ def game_resolution(id, resolution=None):
     if resolution is not None and resolution not in game['resolutions']:
         abort(404)
 
-    helpers.attach_file_sizes(game)
+    helpers.attach_file_sizes(game, resolution=resolution)
 
     return render_template("game.html", game=game, resolution=resolution)
 

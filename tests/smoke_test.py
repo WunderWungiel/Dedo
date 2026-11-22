@@ -24,6 +24,7 @@ from contextlib import ExitStack
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
+from unittest.mock import patch
 from xml.etree import ElementTree as ET
 
 from bson import ObjectId
@@ -273,6 +274,8 @@ def run_checks():
     with app.test_client() as client:
         run.check(client, 'GET', '/', 302, location='/games')
         run.check(client, 'GET', '/games', 200, contains=f'/games/{GAME_ID}/screens')
+        with patch.object(db, 'get_random_game', return_value=None):
+            run.check(client, 'GET', '/games', 200, contains='Search Games', lacks='/images/banners/')
 
         # Missing games and resolutions must get Dedo's XHTML-MP error page, not
         # a Werkzeug page and never a 500.

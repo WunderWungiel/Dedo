@@ -157,6 +157,8 @@ def vendor_games(vendor, page=None):
     total = db.count_games(conditions={'vendor': vendor})
 
     if not total:
+        # Keep the legacy path form's redirect. The named query form below is
+        # the one that reports an unknown vendor as a 404.
         return redirect(url_for('store.vendors'))
 
     results, pages, redirect_response = helpers.paginate(

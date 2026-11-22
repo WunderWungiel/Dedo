@@ -772,6 +772,10 @@ def run_checks():
 
         run.check(client, 'GET', '/games/vendors', 200)
         run.check(client, 'GET', f'/games/vendor/{quote(GAME_VENDOR)}', 200, contains=GAME_TITLE)
+        # The legacy path form keeps its redirect for an unknown vendor; only
+        # the named query form added for slash values returns a 404.
+        run.check(client, 'GET', '/games/vendor/No%20Such%20Vendor', 302,
+                  location_exact='/games/vendors')
         run.verify('slash routing', lambda: check_slash_routes(client))
         run.verify('vendor pagination', lambda: check_vendor_pagination(client))
         run.verify('negative and past-the-end pages', lambda: check_negative_pages(client))

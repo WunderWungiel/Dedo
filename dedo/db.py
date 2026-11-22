@@ -136,14 +136,20 @@ def get_games(conditions=None, sort=None, limit=None, resolution=None, full_resu
             raise ValueError(f"Unsupported sort: {sort}")
         cursor = cursor.sort(SORT_FIELDS[sort], -1)
 
-    if limit is not None:
-        cursor = cursor.limit(limit)
-
+    query_limit = limit
     if page is not None:
-        skip = (page - 1) * config['per_page']
-        cursor = cursor.skip(skip).limit(config['per_page'])
+        per_page = config['per_page']
+        skip = (page - 1) * per_page
+        cursor = cursor.skip(skip)
+        query_limit = per_page if limit is None else min(per_page, limit - skip)
 
-    results = cursor.to_list()
+    # MongoDB treats a limit of zero as unlimited.
+    if page is not None and query_limit <= 0:
+        results = []
+    else:
+        if query_limit is not None:
+            cursor = cursor.limit(query_limit)
+        results = cursor.to_list()
 
     if return_count:
         return results, count_games(conditions, limit=limit)

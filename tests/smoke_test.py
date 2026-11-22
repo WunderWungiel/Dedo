@@ -31,7 +31,7 @@ from bson import ObjectId
 
 from dedo import cache, db
 from dedo.app import app
-from dedo.config import CONTENT_DIR
+from dedo.config import CONTENT_DIR, config
 
 # Every collection the fixtures or the requests write to.
 COLLECTIONS = ['games']
@@ -177,6 +177,26 @@ def check_api_sizes(client):
     return problems
 
 
+def check_top_50_limit(client):
+    games = db.get_collection('games')
+    documents = [
+        {'_id': ObjectId(), 'id': OTHER_ID + rank, 'title': f'Rank {rank}',
+         'downloads': 1000 - rank, 'date': FIXTURES[0]['date']}
+        for rank in range(1, 61)
+    ]
+    with ExitStack() as cleanup:
+        cleanup.callback(games.delete_many, {'_id': {'$in': [document['_id'] for document in documents]}})
+        games.insert_many(documents)
+        with patch.dict(config, per_page=12):
+            response = client.get('/games/top/page/5')
+
+    if response.status_code != 200:
+        return [f'status {response.status_code}, expected 200']
+    page = ET.fromstring(response.data)
+    titles = [link.text for link in page.findall('.//{*}div[@class="GMENU"]/{*}a')]
+    return [f'expected ranks 49 and 50, got {titles}'] if titles != ['Rank 49', 'Rank 50'] else []
+
+
 class Runner:
     def __init__(self):
         self.failures = 0
@@ -309,6 +329,7 @@ def run_checks():
         # Out-of-range pages go back to the first/last page instead of 500.
         run.check(client, 'GET', '/games/top/page/0', 302, location_exact='/games/top')
         run.check(client, 'GET', '/games/top/page/99', 302, location_exact='/games/top')
+        run.verify('Top 50 caps the partial final page', lambda: check_top_50_limit(client))
         run.check(client, 'GET', '/games/latest', 200, contains=OTHER_TITLE)
 
         run.check(client, 'GET', '/games/vendors', 200)

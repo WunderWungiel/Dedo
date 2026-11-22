@@ -8,7 +8,5 @@
         {{ game_row(result) }}
         {% endfor %}
 
-        {% set endpoint = 'store.search_query' %}
-        {% set url_args = {'query': query} %}
         {% include 'includes/pagination.html' %}
 {% endblock %}

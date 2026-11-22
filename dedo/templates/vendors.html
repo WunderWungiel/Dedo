@@ -4,8 +4,9 @@
 
 {% block content %}
         {% for vendor in results %}
+        {% set vendor_href = url_for('store.vendor_games_query', name=vendor) if '/' in vendor else url_for('store.vendor_games', vendor=vendor) %}
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /> <a href="{{ url_for('store.vendor_games', vendor=vendor) }}" class="bluelink">{{ vendor }}</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /> <a href="{{ vendor_href }}" class="bluelink">{{ vendor }}</a>
         </div>
         {% endfor %}
 

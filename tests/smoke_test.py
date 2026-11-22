@@ -23,7 +23,7 @@ import traceback
 from contextlib import ExitStack
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlsplit
 from unittest.mock import patch
 from xml.etree import ElementTree as ET
 
@@ -39,12 +39,15 @@ COLLECTIONS = ['games']
 GAME_ID = 900000001
 OTHER_ID = 900000002
 MISSING_ID = 900000000
+SLASH_ID = 900000200
 GAME_TITLE = "Smoke Game"
 OTHER_TITLE = "Other Game"
 MISSING_TITLE = "Missing Images Game"
+SLASH_TITLE = "Slash A/B Game"
 GAME_VENDOR = "Smoke Vendor"
 OTHER_VENDOR = "Other Vendor"
 MISSING_VENDOR = "Missing Vendor"
+SLASH_VENDOR = "Hugo Games A/S"
 
 FIXTURE_FILES = {
     os.path.join(CONTENT_DIR, "files", "smoke.jar"): b"PK\x03\x04smoke-jar-fixture",
@@ -107,6 +110,18 @@ FIXTURES = [
         "splash": {"link": "http://dedomil.net/hry_scr/missing/missing.png"},
         "screenshot": {"filename": None, "link": "http://dedomil.net/hry_scr/missing/missing.jpg"},
         "description": "Missing image description",
+    },
+    {
+        "id": SLASH_ID,
+        "title": SLASH_TITLE,
+        "vendor": SLASH_VENDOR,
+        "downloads": 2,
+        "date": datetime(2022, 3, 4),
+        "banner": False,
+        "resolutions": {"240x320": {"Nokia": [{"type": "jar", "filename": "smoke.jar"}]}},
+        "splash": None,
+        "screenshot": None,
+        "description": "Slash game description",
     },
 ]
 
@@ -302,6 +317,107 @@ def check_game_image_links(client):
     return problems
 
 
+def check_slash_routes(client):
+    """Slash values use query strings; ordinary values keep the path form."""
+    problems = []
+    games = db.get_collection('games')
+    documents = [
+        {'_id': ObjectId(), 'id': OTHER_ID + 100 + number,
+         'title': f'Slash Search {number} A/B', 'vendor': OTHER_VENDOR,
+         'downloads': 1, 'date': FIXTURES[0]['date'], 'banner': False,
+         'resolutions': {'240x320': {'Nokia': [{'type': 'jar'}]}}}
+        for number in range(1, 13)
+    ]
+
+    def follows(url, path, **expected):
+        parts = urlsplit(url)
+        query = parse_qs(parts.query)
+        return parts.path == path and all(
+            query.get(key) == [value] for key, value in expected.items()
+        )
+
+    def check_redirect(url, path, **expected):
+        response = client.get(url)
+        if response.status_code != 302:
+            problems.append(f'{url} returned {response.status_code}, expected 302')
+            return
+        location = response.headers.get('Location', '')
+        if not follows(location, path, **expected):
+            problems.append(f'{url} redirected to {location!r}, expected {path} {expected}')
+
+    with ExitStack() as cleanup:
+        cleanup.callback(games.delete_many, {'_id': {'$in': [document['_id'] for document in documents]}})
+        games.insert_many(documents)
+        # The vendor list was cached before these temporary rows existed.
+        cache.clear()
+
+        # The rendered vendor list links a slash vendor through the query form.
+        response = client.get('/games/vendors')
+        page = ET.fromstring(response.data)
+        links = {link.text: link.get('href')
+                 for link in page.findall('.//{*}div[@class="GMENU"]/{*}a')}
+        href = links.get(SLASH_VENDOR)
+        if href is None:
+            problems.append(f'vendor list has no link for {SLASH_VENDOR!r}')
+        elif not follows(href, '/games/vendor', name=SLASH_VENDOR):
+            problems.append(f'slash vendor link {href!r} is not a /games/vendor?name= link')
+        else:
+            followed = client.get(href)
+            if followed.status_code != 200:
+                problems.append(f'following vendor link {href!r} returned {followed.status_code}')
+            elif SLASH_TITLE not in followed.get_data(as_text=True):
+                problems.append(f'following vendor link {href!r} lacks {SLASH_TITLE!r}')
+
+        # Posting the search form redirects to the query form for a slash query.
+        posted = client.post('/games/search', data={'q': 'A/B'})
+        location = posted.headers.get('Location', '')
+        if posted.status_code != 302:
+            problems.append(f'search form returned {posted.status_code}, expected 302')
+        elif not follows(location, '/games/search', q='A/B', page='1'):
+            problems.append(f'search form redirected to {location!r}, expected /games/search?q=A/B&page=1')
+
+        # Pagination keeps the slash query in the query string and page 2 works.
+        first = client.get('/games/search?q=A%2FB&page=1')
+        if first.status_code != 200:
+            problems.append(f'slash search page 1 returned {first.status_code}')
+        else:
+            page = ET.fromstring(first.data)
+            links = [link.get('href') for link in page.findall('.//{*}div[@class="PAGES"]/{*}a')]
+            if not any(link and follows(link, '/games/search', q='A/B', page='2') for link in links):
+                problems.append(f'slash search page 1 has no query-form page 2 link: {links}')
+            second = client.get('/games/search?q=A%2FB&page=2')
+            body = second.get_data(as_text=True)
+            if second.status_code != 200:
+                problems.append(f'slash search page 2 returned {second.status_code}')
+            elif not any(f'Slash Search {number} A/B' in body for number in range(1, 13)):
+                problems.append('slash search page 2 lacks a temporary result')
+
+        # Negative page numbers redirect to the first page instead of 404ing.
+        check_redirect('/games/search?q=A%2FB&page=-1', '/games/search', q='A/B')
+        check_redirect('/games/search/Smoke/page/-1', '/games/search/Smoke')
+        check_redirect(f'/games/vendor?name={quote(SLASH_VENDOR)}&page=-1', '/games/vendor', name=SLASH_VENDOR)
+        check_redirect('/games/vendor/Smoke%20Vendor/page/-1', '/games/vendor/Smoke%20Vendor')
+
+        # A vendor name that matches nothing is a Dedo page, not a redirect.
+        response = client.get('/games/vendor?name=No%20Such%20Vendor')
+        if response.status_code != 404:
+            problems.append(f'unknown named vendor returned {response.status_code}, expected 404')
+        elif b'Not found' not in response.data:
+            problems.append('unknown named vendor did not render the XHTML 404 page')
+
+        # Ordinary values keep the legacy path form, first page and paginated.
+        for url in ('/games/search/Smoke', '/games/search/Smoke/page/1',
+                    '/games/vendor/Smoke%20Vendor', '/games/vendor/Smoke%20Vendor/page/1'):
+            response = client.get(url)
+            if response.status_code != 200:
+                problems.append(f'legacy URL {url} returned {response.status_code}')
+            elif GAME_TITLE not in response.get_data(as_text=True):
+                problems.append(f'legacy URL {url} lacks {GAME_TITLE!r}')
+
+    cache.clear()
+    return problems
+
+
 class Runner:
     def __init__(self):
         self.failures = 0
@@ -458,6 +574,7 @@ def run_checks():
 
         run.check(client, 'GET', '/games/vendors', 200)
         run.check(client, 'GET', f'/games/vendor/{quote(GAME_VENDOR)}', 200, contains=GAME_TITLE)
+        run.verify('slash routing', lambda: check_slash_routes(client))
 
         run.check(client, 'GET', '/games/screens', 200)
         run.check(client, 'GET', '/games/screen/240x320', 200, contains=GAME_TITLE)

@@ -52,6 +52,11 @@ def game_resolution(id, resolution=None):
 def search():
 
     if request.method == 'GET':
+        query = request.args.get('q')
+        if query:
+            page = request.args.get('page', type=int)
+            return _search_results(query, 1 if page is None else page,
+                                   request.endpoint, {'q': query})
         return render_template("search.html", text=request.args.get('text'))
 
     query = request.form.get('q')
@@ -59,26 +64,35 @@ def search():
     if not query:
         return redirect(url_for('store.root'))
 
+    # A slash cannot be a path segment, so those queries use the query form.
+    if '/' in query:
+        return redirect(url_for('store.search', q=query, page=1))
+
     return redirect(url_for('store.search_query', query=query, page=1))
 
 
-@store.route("/games/search/<query>")
-@store.route("/games/search/<query>/page/<int:page>")
-def search_query(query, page=None):
-
-    page = page if page is not None else 1
+def _search_results(query, page, endpoint, url_args):
     total = db.count_search(query)
 
     if not total:
         return redirect(url_for('store.search', text="No matches found!"))
 
     results, pages, redirect_response = helpers.paginate(
-        page, total, lambda page: db.search(query, page=page),
-        request.endpoint, config['per_page'], {'query': query})
+        page, total, lambda number: db.search(query, page=number),
+        endpoint, config['per_page'], url_args)
     if redirect_response:
         return redirect_response
 
-    return render_template("search_results.html", results=results, query=query, pages=pages)
+    return render_template("search_results.html", results=results, query=query,
+                           endpoint=endpoint, url_args=url_args, pages=pages)
+
+
+@store.route("/games/search/<query>")
+@store.route("/games/search/<query>/page/<int(signed=True):page>")
+def search_query(query, page=None):
+
+    page = page if page is not None else 1
+    return _search_results(query, page, request.endpoint, {'query': query})
 
 
 @store.route("/games/top")
@@ -136,7 +150,7 @@ def vendors(page=None):
 
 
 @store.route("/games/vendor/<vendor>")
-@store.route("/games/vendor/<vendor>/page/<int:page>")
+@store.route("/games/vendor/<vendor>/page/<int(signed=True):page>")
 def vendor_games(vendor, page=None):
 
     page = page if page is not None else 1
@@ -152,6 +166,31 @@ def vendor_games(vendor, page=None):
         return redirect_response
 
     return render_template("list.html", endpoint=request.endpoint, results=results, text=vendor, url_args={'vendor': vendor}, pages=pages)
+
+
+@store.route("/games/vendor")
+def vendor_games_query():
+    """Vendor names containing a slash cannot be a single path segment."""
+
+    vendor = request.args.get('name')
+
+    if not vendor:
+        return redirect(url_for('store.vendors'))
+
+    page = request.args.get('page', type=int)
+    page = 1 if page is None else page
+    total = db.count_games(conditions={'vendor': vendor})
+
+    if not total:
+        abort(404)
+
+    results, pages, redirect_response = helpers.paginate(
+        page, total, lambda page: db.get_games(conditions={'vendor': vendor}, page=page),
+        request.endpoint, config['per_page'], {'name': vendor})
+    if redirect_response:
+        return redirect_response
+
+    return render_template("list.html", endpoint=request.endpoint, results=results, text=vendor, url_args={'name': vendor}, pages=pages)
 
 
 @store.route("/games/screens")

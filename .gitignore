@@ -223,5 +223,5 @@ content/files/*
 # Local Compose overrides
 compose.override.yaml
 
-# MongoDB configuration
-mongodb-config
+# Old MongoDB bind mount, kept by deployments upgrading from the old layout
+mongo-config

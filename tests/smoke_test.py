@@ -287,7 +287,7 @@ def run_checks():
         run.check(client, 'GET', f'/games/{GAME_ID}/screen/240x320', 200, lacks='320x240')
 
         run.check(client, 'GET', '/games/search', 200, contains='name="q"')
-        run.check(client, 'POST', '/games/search', 302, location=f'/games/search/Smoke/page/1',
+        run.check(client, 'POST', '/games/search', 302, location='/games/search/Smoke/page/1',
                   data={'q': 'Smoke'})
         run.check(client, 'POST', '/games/search', 302, location_exact='/', data={'q': ''})
         run.check(client, 'GET', '/games/search/Smoke', 200, contains=GAME_TITLE)

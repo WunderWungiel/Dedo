@@ -1,29 +1,11 @@
-<?xml version="1.0"?><!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+{% extends 'base.html' %}
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+{% block title %}Resolutions{% endblock %}
 
-    <head>
-        <title>Resolutions</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" type="text/css" />
-        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
-        <meta name="viewport" content="width=device-width, user-scalable=no" />
-        <meta http-equiv="Content-Style-Type" content="text/css" charset="utf-8" />
-        <meta http-equiv="Cache-Control" content="must-revalidate"/>
-        <meta http-equiv="Cache-Control" content="no-cache"/>
-    </head>
-    <body>
+{% block content %}
         {% for resolution in resolutions %}
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"> <a href="{{ url_for('store.resolution_games', resolution=resolution) }}" class="bluelink">{{ resolution }}</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /> <a href="{{ url_for('store.resolution_games', resolution=resolution) }}" class="bluelink">{{ resolution }}</a>
         </div>
         {% endfor %}
-
-        <div class="HLISTA" style="margin-top: 7px;">
-            <a href="{{ url_for('store.root') }}" class="bluelink">Home</a>
-        </div>
-
-      	<div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>
-        <div class="END">&#169;&#160; Dedomil 2003-{{ now.year }}</div>
-        
-    </body>
-</html>
+{% endblock %}

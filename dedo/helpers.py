@@ -3,6 +3,7 @@ import os
 
 import humanize
 from flask import current_app, redirect, url_for
+from markupsafe import Markup, escape
 
 
 def generate_pages(page, total_pages):
@@ -49,3 +50,9 @@ def attach_file_sizes(game):
             for file in files:
                 file["size"] = humanize.naturalsize(file_size(file.get("filename")))
     return game
+
+
+def nl2br(text):
+    if text is None:
+        return Markup("")
+    return Markup("<br/>").join(escape(text).split("\n"))

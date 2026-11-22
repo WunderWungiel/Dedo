@@ -185,7 +185,7 @@ class Runner:
             problems = ["raised:\n" + traceback.format_exc()]
         self.report(label, problems)
 
-    def check(self, client, method, path, status, contains=None, xml=False, location=None,
+    def check(self, client, method, path, status, contains=None, location=None,
               location_exact=None, data=None, lacks=None, api=False, headers=None,
               json_body=None, json_keys=None, json_contains=None, result_title=None,
               body_equals=None):
@@ -209,7 +209,10 @@ class Runner:
                     problems.append(f"body has {text!r}")
             if body_equals is not None and body != body_equals:
                 problems.append("body does not match the fixture bytes")
-            if xml:
+            # Every page Dedo renders is XHTML Mobile Profile, so it must be
+            # well-formed XML. Redirect bodies (and Werkzeug's own errors) are
+            # not rendered by Dedo and are skipped.
+            if body and response.mimetype == 'text/html' and response.status_code in (200, 404, 500):
                 try:
                     ET.fromstring(body)
                 except ET.ParseError as error:
@@ -266,7 +269,10 @@ def run_checks():
         run.check(client, 'GET', f'/games/{GAME_ID}/screen/999x999', 404)
 
         run.check(client, 'GET', f'/games/{GAME_ID}/screens', 200, contains='240x320')
-        run.check(client, 'GET', f'/games/{GAME_ID}', 200, contains=['smoke.jar', 'Bytes'])
+        # The description is escaped before line breaks are added.
+        run.check(client, 'GET', f'/games/{GAME_ID}', 200,
+                  contains=['smoke.jar', 'Bytes', '&lt;b&gt;x&lt;/b&gt;', 'Line one<br/>Line two'],
+                  lacks='<b>x</b>')
         run.check(client, 'GET', f'/games/{GAME_ID}/screen/240x320', 200, lacks='320x240')
 
         run.check(client, 'GET', '/games/search', 200, contains='name="q"')

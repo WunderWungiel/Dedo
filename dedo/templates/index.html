@@ -1,50 +1,30 @@
-<?xml version="1.0"?><!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+{% extends 'base.html' %}
 
-<html xmlns="http://www.w3.org/1999/xhtml">
-    <head>
-        <title>Free mobile games</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" type="text/css" />
-        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
-        <meta name="viewport" content="width=device-width, user-scalable=no" />
-        <meta http-equiv="Content-Style-Type" content="text/css" charset="utf-8" />
-        <meta http-equiv="Cache-Control" content="must-revalidate"/>
-        <meta http-equiv="Cache-Control" content="no-cache"/>
-	    <meta http-equiv="content-language" content="en-gb">
-    </head>
+{% block title %}Free mobile games{% endblock %}
 
-    <body>
+{% block content %}
         <div class="ANDROID">Can't Find What You Want?</div>
 
         <div style="margin-top: 1px; margin-bottom: -4px">
-            <a href="{{ url_for('store.game_resolutions', id=random_game['id']) }}"><img src="{{ url_for('static', filename='content/images/banners/' ~ random_game['id'] ~ '.jpg') }}" width="100%" alt="banner"/></a>
+            <a href="{{ url_for('store.game_resolutions', id=random_game['id']) }}"><img src="{{ url_for('static', filename='content/images/banners/' ~ random_game['id'] ~ '.jpg') }}" width="100%" alt="banner" /></a>
         </div>
         
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.search') }}" class="bluelink">Search Games</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /><a href="{{ url_for('store.search') }}" class="bluelink">Search Games</a>
         </div>
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.browse_games') }}" class="bluelink">All games</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /><a href="{{ url_for('store.browse_games') }}" class="bluelink">All games</a>
         </div>
         <!-- <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.latest_games') }}" class="bluelink">Latest 15 Games</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /><a href="{{ url_for('store.latest_games') }}" class="bluelink">Latest 15 Games</a>
         </div> -->
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.top_games') }}" class="bluelink">TOP 50 Games</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /><a href="{{ url_for('store.top_games') }}" class="bluelink">TOP 50 Games</a>
         </div>
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.vendors') }}" class="bluelink">Vendors</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /><a href="{{ url_for('store.vendors') }}" class="bluelink">Vendors</a>
         </div>
         <div class="GMENU">
-            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img"/><a href="{{ url_for('store.games_resolutions') }}" class="bluelink">Resolutions</a>
+            <img src="{{ url_for('static', filename='images/arrow-black.gif') }}" alt="." class="icon_img" /><a href="{{ url_for('store.games_resolutions') }}" class="bluelink">Resolutions</a>
         </div>
-    
-        <div class="HLISTA" style="margin-top: 7px;">
-          <a href="{{ url_for('store.root') }}" class="bluelink">Home</a>
-        </div>
-
-	    <div style="font-family: Times New Roman; font-size: small; color: #000033; text-align: center"></div>
-
-        <div class="END">&#169;&#160; Dedomil 2003-{{ now.year }}</div>
-
-    </body>
-</html>
+{% endblock %}

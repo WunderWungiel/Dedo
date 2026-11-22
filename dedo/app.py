@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import config
-from . import cli, db
+from . import cli, db, helpers
 from .blueprints.api import api as api_blueprint
 from .blueprints.store import store as store_blueprint
 
@@ -28,6 +28,11 @@ def utility_processor():
     return dict(
         now=datetime.now()
     )
+
+
+@app.template_filter('nl2br')
+def nl2br_filter(text):
+    return helpers.nl2br(text)
 
 
 @app.errorhandler(404)

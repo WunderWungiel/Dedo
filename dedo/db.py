@@ -2,8 +2,8 @@ import re
 
 import pymongo
 
-from .config import config
-client = pymongo.MongoClient(config['mongodb_uri'])
+from .config import MONGO_URI, config
+client = pymongo.MongoClient(MONGO_URI)
 
 def get_collection(collection_name):
     db = client.get_default_database()

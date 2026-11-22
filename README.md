@@ -24,16 +24,25 @@ Edit `config.yaml` and set `per_page` and `allow_indexing`. The rest of the
 file can stay as it is.
 
 ```bash
-docker compose up -d --build
+docker compose up -d --build --wait
 ```
 
 Open <http://127.0.0.1:8080>. `BIND_ADDRESS` and `PORT` in `.env` change the
-address the nginx proxy listens on; the default is localhost only.
+address the nginx proxy listens on; the default is localhost only. `--wait`
+blocks until `db`, `app` and `proxy` are healthy.
 
 The stack has four services: `db` (MongoDB 8.0), `indexes` (a one-shot job that
 creates the MongoDB indexes), `app` (gunicorn) and `proxy` (nginx). `db`, `app`
-and `proxy` restart automatically; `indexes` runs once per `up`. `config.yaml`
-and `content/` are mounted read-only and are not part of the image.
+and `proxy` restart automatically; `indexes` runs once per `up`. The app waits
+for the index job to finish successfully, so a failed job leaves the site down
+and its logs name the problem instead of hiding it. `db` is healthy once an
+authenticated ping succeeds over the Compose network, including when the
+catalogue is still empty. `config.yaml` and `content/` are mounted read-only
+and are not part of the image.
+
+Compose sets the runtime user of `app` and `indexes` from `APP_UID` and
+`APP_GID` in `.env`. Set them to a UID/GID that can read `content/` and
+`config.yaml`; the image itself is built with UID/GID 1000.
 
 ## Running without Docker
 
@@ -106,11 +115,17 @@ comes only from the `MONGO_*` variables.
 ## Maintenance
 
 Create or refresh the MongoDB indexes. The `indexes` service runs this on
-every `docker compose up`, and it can be run by hand through Compose:
+every `docker compose up`, and the `app` service waits for it to exit 0 before
+it starts. It can also be run by hand through Compose:
 
 ```bash
+docker compose build app
 docker compose run --rm indexes
 ```
+
+Build the app image first on a fresh checkout: the one-shot job uses the same
+image and does not pull one. A failed job prints the duplicate game ids and
+blocks startup until the data is fixed.
 
 Without Docker, use the same command from the repo root with the `MONGO_*`
 variables exported:
@@ -272,16 +287,20 @@ anything: `ls content` and `ls app/static/content`.
 8. Start the new stack and check it:
 
    ```bash
-   docker compose up -d --build
+   docker compose up -d --build --wait
    docker compose ps -a
    ```
 
    `app`, `proxy` and `db` must be healthy and `indexes` should have exited 0.
+   The app waits for the index job, so a failed job stops startup; inspect it
+   with `docker compose logs indexes`.
 
-9. Create the indexes if the `indexes` service did not run (for example when
-   you only started the app container):
+9. The `indexes` service runs as a dependency of `app`, so a normal `up`
+   creates or refreshes the indexes first. If you restored data after the
+   stack was already running, run the job again:
 
    ```bash
+   docker compose build app
    docker compose run --rm indexes
    ```
 

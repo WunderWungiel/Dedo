@@ -1,6 +1,4 @@
-mongodb_uri: ''
-secret_key: ''
-proxy: false
 per_page: 10
-allow_indexing: true
+allow_indexing: false
 api_prefix: '/api/v1'
+content_dir: 'content'

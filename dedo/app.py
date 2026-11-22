@@ -4,6 +4,7 @@ from datetime import datetime
 
 from flask import Flask, redirect, render_template, url_for, send_from_directory, request
 import humanize
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import config
 from . import db
@@ -11,13 +12,9 @@ from .blueprints.api import api as api_blueprint
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
-app.config['SECRET_KEY'] = config['secret_key']
-
-if config['proxy']:
-    from werkzeug.middleware.proxy_fix import ProxyFix
-    app.wsgi_app = ProxyFix(
-        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
-    )
+app.wsgi_app = ProxyFix(
+    app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
+)
 
 app.register_blueprint(api_blueprint)
 

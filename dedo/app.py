@@ -1,5 +1,6 @@
 import atexit
 from datetime import datetime
+from os.path import splitext
 
 from flask import Flask, render_template, request, send_from_directory
 from pymongo.errors import PyMongoError
@@ -14,6 +15,10 @@ atexit.register(db.client.close)
 
 # Endpoints that serve files, where a missing file is a plain 404, not a page.
 FILE_ENDPOINTS = {'static', 'content'}
+JAVA_DOWNLOAD_TYPES = {
+    '.jar': 'application/java-archive',
+    '.jad': 'text/vnd.sun.j2me.app-descriptor',
+}
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -41,7 +46,8 @@ def nl2br_filter(text):
 
 @app.route("/static/content/<path:filename>")
 def content(filename):
-    return send_from_directory(CONTENT_DIR, filename)
+    mimetype = JAVA_DOWNLOAD_TYPES.get(splitext(filename)[1].lower())
+    return send_from_directory(CONTENT_DIR, filename, mimetype=mimetype)
 
 
 @app.route("/healthz")

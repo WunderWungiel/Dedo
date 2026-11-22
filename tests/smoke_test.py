@@ -322,7 +322,11 @@ def run_checks():
         run.check(client, 'GET', '/static/css/style.css', 200,
                   headers={'Cache-Control': 'public, max-age=86400'})
         run.check(client, 'GET', '/static/content/files/smoke.jar', 200,
-                  body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'files', 'smoke.jar')])
+                  body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'files', 'smoke.jar')],
+                  headers={'Content-Type': 'application/java-archive'})
+        run.check(client, 'GET', '/static/content/files/smoke.jad', 200,
+                  body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'files', 'smoke.jad')],
+                  headers={'Content-Type': 'text/vnd.sun.j2me.app-descriptor; charset=utf-8'})
         run.check(client, 'GET', '/static/content/images/splashes/smoke.png', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'images', 'splashes', 'smoke.png')])
         run.check(client, 'GET', '/robots.txt', 200)

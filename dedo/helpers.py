@@ -3,16 +3,31 @@ import os
 import re
 
 import humanize
-from flask import redirect, url_for
+from flask import current_app, redirect, url_for
 from markupsafe import Markup, escape
 
-from .config import CONTENT_DIR
+from .config import CANONICAL_URL, CONTENT_DIR
 
 # XML 1.0 does not allow most control characters, and an escaped one still
 # makes the page unparseable, so drop them before escaping.
 XML_INVALID_CHARACTERS = re.compile(
     '[^\u0009\u000a\u000d\u0020-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]'
 )
+
+
+def canonical_url_for(endpoint, **values):
+    """Build the absolute URL crawlers should use for an endpoint.
+
+    Use it only for canonical links, og:url, og:image, the sitemap and robots.txt;
+    page links stay on url_for. Without canonical_url it follows the request's scheme
+    and host, so ProxyFix's forwarded values apply.
+    """
+    if CANONICAL_URL is None:
+        return url_for(endpoint, _external=True, **values)
+    adapter = current_app.url_map.bind(
+        CANONICAL_URL.netloc, script_name=CANONICAL_URL.path or '/',
+        url_scheme=CANONICAL_URL.scheme)
+    return adapter.build(endpoint, values, force_external=True)
 
 
 def generate_pages(page, total_pages):

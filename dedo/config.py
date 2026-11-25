@@ -1,6 +1,6 @@
 import yaml
 import os
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlsplit
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -79,6 +79,19 @@ def _mongo_problems():
     return problems
 
 
+def _is_public_url(value):
+    if not _is_str(value) or not value.strip():
+        return False
+    try:
+        url = urlsplit(value.strip())
+        url.port  # raises ValueError for a malformed port
+    except ValueError:
+        return False
+    return (url.scheme in ('http', 'https') and bool(url.hostname)
+            and url.username is None and url.password is None
+            and not url.query and not url.fragment)
+
+
 _MISSING = object()
 
 
@@ -112,6 +125,17 @@ def _validate(data):
     if content_dir is not None and not (_is_str(content_dir) and content_dir.strip()):
         problems.append(f"content_dir must be a non-empty string, got {content_dir!r}")
 
+    canonical_url = data.get('canonical_url')
+    if canonical_url is not None and not _is_public_url(canonical_url):
+        problems.append(
+            "canonical_url must be an absolute HTTP(S) URL without credentials, "
+            "query or fragment")
+
+    verification = data.get('google_site_verification')
+    if verification is not None and not (_is_str(verification) and verification.strip()):
+        problems.append(
+            f"google_site_verification must be a non-empty string, got {verification!r}")
+
     problems += _mongo_problems()
 
     if problems:
@@ -126,6 +150,15 @@ _validate(config)
 
 CONTENT_DIR = os.path.normpath(
     os.path.join(ROOT_DIR, config.get('content_dir') or 'content'))
+
+# Where search engines should index the site: canonical links, og:url and the sitemap.
+# Optional. None means use the scheme and host of the request itself.
+_canonical_url = config.get('canonical_url')
+if _canonical_url is None:
+    CANONICAL_URL = None
+else:
+    _split = urlsplit(_canonical_url.strip())
+    CANONICAL_URL = _split._replace(path=_split.path.rstrip('/'))
 
 
 MONGO_DB = MONGO['db']

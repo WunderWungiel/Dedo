@@ -198,6 +198,37 @@ def check_config_validation():
     elif padded.stdout.splitlines() != ['27017', expected_uri]:
         problems.append(f'padded MONGO_PORT produced {padded.stdout.splitlines()!r}, '
                         f'expected [\'27017\', {expected_uri!r}]')
+
+    for text in ('canonical_url: "ftp://dedomil.example"',
+                 'canonical_url: "https://user:pw@dedomil.example"',
+                 'canonical_url: "https://dedomil.example/?q=1"',
+                 'canonical_url: 5',
+                 'google_site_verification: ""'):
+        key = text.split(':')[0]
+        result = run_config(config_text=CONFIG_FIXTURE + text + '\n')
+        if result.returncode == 0:
+            problems.append(f'{text} was accepted')
+            continue
+        if 'ConfigError' not in result.stderr:
+            problems.append(f'{text} did not raise ConfigError')
+        if key not in result.stderr:
+            problems.append(f'{text} diagnostic does not name the key')
+        if 'pw@' in result.stderr:
+            problems.append(f'{text} diagnostic leaks the credentials')
+
+    expression = ('from dedo.app import app; from dedo import helpers\n'
+                  'with app.test_request_context("/"): '
+                  'print(helpers.canonical_url_for("store.games"))')
+    for text, expected in (
+            ('canonical_url: "https://dedomil.example/dedo/"\n',
+             'https://dedomil.example/dedo/games'),
+            ('', 'http://localhost/games')):
+        result = run_config(config_text=CONFIG_FIXTURE + text, expression=expression)
+        if result.returncode != 0:
+            problems.append(f'canonical_url_for failed: {result.stderr.strip()[-200:]}')
+        elif result.stdout.strip() != expected:
+            problems.append(f'canonical_url_for printed {result.stdout.strip()!r}, '
+                            f'expected {expected!r}')
     return problems
 
 

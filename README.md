@@ -87,6 +87,13 @@ application reads at startup:
 - `api_prefix` — URL prefix for the JSON API, normally `/api/v1`.
 - `content_dir` — directory with game files and images, relative to the repo
   root (default `content`).
+- `canonical_url` — optional. The address search engines should index, such as
+  `https://dedomil.example` or `https://dedomil.example/dedo`. It must be an
+  absolute HTTP(S) URL without credentials, query or fragment. Left out,
+  crawler URLs use the address of the request.
+- `google_site_verification` — optional. The content value of Google Search
+  Console's HTML tag, printed as a meta tag on every page. It must be a
+  non-empty string.
 
 `DEDO_CONFIG` can name a different config file, which is useful for a test
 configuration:

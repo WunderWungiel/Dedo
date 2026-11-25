@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 import pymongo
 from pymongo.errors import DuplicateKeyError
@@ -198,6 +199,24 @@ def get_game(id):
 def get_vendors():
     vendors = client[MONGO_DB].games.distinct("vendor")
     return sorted(vendor for vendor in vendors if vendor)
+
+@ttl_cache(300)
+def get_sitemap_games():
+    """Every game's id, date and resolution names, without the file lists."""
+    pipeline = [
+        {'$project': {'_id': 0, 'id': 1, 'date': 1,
+                      'resolutions': {'$map': {
+                          'input': {'$objectToArray': {'$ifNull': ['$resolutions', {}]}},
+                          'as': 'r', 'in': '$$r.k'}}}},
+        {'$sort': {'id': 1}},
+    ]
+    return [
+        {'id': game['id'],
+         'date': game['date'] if isinstance(game.get('date'), datetime) else None,
+         'resolutions': game.get('resolutions') or []}
+        for game in get_collection('games').aggregate(pipeline)
+    ]
+
 
 @ttl_cache(300)
 def get_resolutions():

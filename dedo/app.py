@@ -108,10 +108,19 @@ def server_error(e):
     ), 500
 
 
-if not config['allow_indexing']:
-    @app.route("/robots.txt")
-    def robots():
+@app.route("/robots.txt")
+def robots():
+    if not config['allow_indexing']:
         return send_from_directory(app.static_folder, "robots.txt")
+    # Search pages stay crawlable so crawlers can read their noindex. Game files
+    # are blocked to save bandwidth; images stay crawlable for og:image.
+    lines = [
+        "User-agent: *",
+        f"Disallow: {config['api_prefix'].rstrip('/')}/",
+        "Disallow: /static/content/files/",
+        f"Sitemap: {helpers.canonical_url_for('store.sitemap')}",
+    ]
+    return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=8000)

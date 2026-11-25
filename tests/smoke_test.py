@@ -34,6 +34,7 @@ from pymongo.errors import PyMongoError
 
 from dedo import cache, db, helpers
 from dedo.app import app
+from dedo.blueprints import store as store_module
 from dedo.config import CONTENT_DIR, config
 
 # Every collection the fixtures or the requests write to.
@@ -619,6 +620,53 @@ def check_description_rendering(client):
     return problems
 
 
+def check_sitemap_parts(client):
+    """Parts stay within the size limit, cover every URL once, and tolerate dateless games."""
+    problems = []
+    games = db.get_collection('games')
+    document = {'_id': ObjectId(), 'id': OTHER_ID + 300, 'title': 'Dateless Game',
+                'vendor': OTHER_VENDOR, 'downloads': 1, 'banner': False,
+                'resolutions': {'240x320': {'Nokia': [{'type': 'jar'}]}}}
+    ns = '{http://www.sitemaps.org/schemas/sitemap/0.9}'
+
+    def locs(response):
+        return [loc.text for loc in ET.fromstring(response.data).iter(ns + 'loc')]
+
+    with ExitStack() as cleanup:
+        cleanup.callback(games.delete_many, {'_id': document['_id']})
+        cleanup.callback(cache.clear)
+        games.insert_one(document)
+        cache.clear()
+
+        whole = locs(client.get('/sitemap/1.xml'))
+        with patch.object(store_module, 'SITEMAP_URLS_PER_FILE', 5):
+            index = locs(client.get('/sitemap.xml'))
+            if len(index) < 2:
+                problems.append(f'index lists {len(index)} parts, expected several')
+            combined = []
+            for number in range(1, len(index) + 1):
+                response = client.get(f'/sitemap/{number}.xml')
+                if response.status_code != 200:
+                    problems.append(f'part {number} returned {response.status_code}')
+                    continue
+                urls = list(ET.fromstring(response.data).iter(ns + 'url'))
+                if len(urls) > 5:
+                    problems.append(f'part {number} has {len(urls)} urls')
+                combined += locs(response)
+            if combined != whole:
+                problems.append('the parts together do not list the same URLs as one file')
+
+        base = whole[0].rsplit('/games', 1)[0]
+        for url in ET.fromstring(client.get('/sitemap/1.xml').data).iter(ns + 'url'):
+            if url.find(ns + 'loc').text == f'{base}/games/{document["id"]}/screens':
+                if url.find(ns + 'lastmod') is not None:
+                    problems.append('dateless game has a lastmod')
+                break
+        else:
+            problems.append('dateless game is missing from the sitemap')
+    return problems
+
+
 def check_negative_pages(client):
     """Negative and past-the-end pages redirect on every listing."""
     problems = []
@@ -678,7 +726,7 @@ class Runner:
     def check(self, client, method, path, status, contains=None, location=None,
               location_exact=None, data=None, lacks=None, api=False, headers=None,
               json_body=None, json_keys=None, json_contains=None, result_title=None,
-              body_equals=None):
+              body_equals=None, xml=False):
         self.count += 1
         label = f"{method} {path}"
         try:
@@ -702,7 +750,7 @@ class Runner:
             # Every page Dedo renders is XHTML Mobile Profile, so it must be
             # well-formed XML. Redirect bodies (and Werkzeug's own errors) are
             # not rendered by Dedo and are skipped.
-            if body and response.mimetype == 'text/html' and response.status_code in (200, 404, 500):
+            if body and (xml or (response.mimetype == 'text/html' and response.status_code in (200, 404, 500))):
                 try:
                     ET.fromstring(body)
                 except ET.ParseError as error:
@@ -908,7 +956,27 @@ def run_checks():
         run.check(client, 'GET', '/static/content/images/splashes/smoke.png', 200,
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'images', 'splashes', 'smoke.png')])
         run.verify('bare missing content file', lambda: check_bare_missing_file(client))
-        run.check(client, 'GET', '/robots.txt', 404 if config['allow_indexing'] else 200)
+        if config['allow_indexing']:
+            run.check(client, 'GET', '/robots.txt', 200,
+                      contains=[f'Disallow: {api_prefix}/', 'Disallow: /static/content/files/',
+                                f'Sitemap: {canonical_base}/sitemap.xml'],
+                      lacks='Disallow: /games')
+        else:
+            run.check(client, 'GET', '/robots.txt', 200, contains='Disallow: /')
+        run.check(client, 'GET', '/sitemap.xml', 200, xml=True,
+                  contains=['<sitemapindex', f'{canonical_base}/sitemap/1.xml</loc>'])
+        run.check(client, 'GET', '/sitemap/1.xml', 200, xml=True, contains=[
+            f'{canonical_base}/games/top</loc>',
+            f'/games/{GAME_ID}/screens</loc>',
+            f'/games/{GAME_ID}/screen/240x320</loc>',
+            '/games/vendor/Smoke%20Vendor</loc>',
+            '/games/vendor?name=Hugo',
+            '/games/screen/240x320</loc>',
+            '<lastmod>2020-01-02</lastmod>'],
+            lacks=['/games/search', f'<loc>{canonical_base}/</loc>'])
+        run.check(client, 'GET', '/sitemap/0.xml', 404)
+        run.check(client, 'GET', '/sitemap/99.xml', 404)
+        run.verify('sitemap parts', lambda: check_sitemap_parts(client))
         run.check(client, 'GET', '/healthz', 200, body_equals=b'ok',
                   headers={'Content-Type': 'text/plain',
                            'Cache-Control': 'no-store'})

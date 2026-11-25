@@ -83,7 +83,7 @@ application reads at startup:
 
 - `per_page` — games per page, a positive integer.
 - `allow_indexing` — `true` or `false`; when false, `/robots.txt` disallows all
-  crawlers, and when true the route is not registered.
+  crawlers, and when true it serves a generated list (see Search engines).
 - `api_prefix` — URL prefix for the JSON API, normally `/api/v1`.
 - `content_dir` — directory with game files and images, relative to the repo
   root (default `content`).
@@ -118,6 +118,27 @@ is required; `MONGO_HOST` and `MONGO_PORT` default to `localhost` and `27017`;
 port must be an ASCII decimal number from 1 to 65535 when it is set. A leftover
 `mongodb_uri` in `config.yaml` is rejected at startup; the database connection
 comes only from the `MONGO_*` variables.
+
+## Search engines
+
+With `allow_indexing: true`, `/robots.txt` is generated. It disallows the JSON
+API (`api_prefix`) and `/static/content/files/`, so crawlers skip game
+downloads but can still fetch images for `og:image`. Search pages stay
+crawlable so crawlers can read their `noindex` tag. It ends with a `Sitemap:`
+line. With `false`, it serves `dedo/static/robots.txt`, which disallows
+everything.
+
+`/sitemap.xml` is a sitemap index over `/sitemap/<n>.xml` parts of at most
+25,000 URLs each, because the bundled catalogue is larger than the protocol's
+50,000-URL limit for one file. They list the listing pages, every vendor, every
+resolution that has games, and every game's resolution list and download pages,
+with the game's date as `lastmod`. Vendors with a `/` in the name use the
+`/games/vendor?name=` form. The list is cached for five minutes.
+
+Every URL given to crawlers uses `canonical_url` when it is set, and otherwise
+the scheme and host of the request. Set `google_site_verification` to the
+content value of Search Console's HTML tag to verify the site, then submit
+`/sitemap.xml`.
 
 ## Maintenance
 

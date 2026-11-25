@@ -1,4 +1,7 @@
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+import math
+from xml.etree import ElementTree as ET
+
+from flask import Blueprint, Response, abort, redirect, render_template, request, url_for
 
 from .. import db, helpers
 from ..config import config
@@ -243,3 +246,66 @@ def browse_games(page=None):
         return redirect_response
 
     return render_template("list.html", endpoint=request.endpoint, results=results, text="All games", description="Every free mobile game in the catalogue.", pages=pages)
+
+
+SITEMAP_URLS_PER_FILE = 25000
+SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+
+
+def _sitemap_entries():
+    """(absolute URL, lastmod) for every page worth indexing, in a stable order."""
+    url = helpers.canonical_url_for
+    entries = [(url(endpoint), None) for endpoint in (
+        'store.games', 'store.top_games', 'store.latest_games',
+        'store.browse_games', 'store.vendors', 'store.games_resolutions')]
+
+    for vendor in db.get_vendors():
+        if '/' in vendor:
+            entries.append((url('store.vendor_games_query', name=vendor), None))
+        else:
+            entries.append((url('store.vendor_games', vendor=vendor), None))
+
+    for resolution in db.get_resolutions():
+        if '.' not in resolution and '/' not in resolution:
+            entries.append((url('store.resolution_games', resolution=resolution), None))
+
+    for game in db.get_sitemap_games():
+        lastmod = game['date']
+        entries.append((url('store.game_resolutions', id=game['id']), lastmod))
+        entries.append((url('store.game_resolution', id=game['id']), lastmod))
+        for resolution in game['resolutions']:
+            if '/' not in resolution:
+                entries.append((url('store.game_resolution', id=game['id'], resolution=resolution), lastmod))
+    return entries
+
+
+def _xml_response(root):
+    ET.indent(root)
+    body = ET.tostring(root, encoding='unicode', xml_declaration=False)
+    return Response('<?xml version="1.0" encoding="UTF-8"?>\n' + body + '\n',
+                    mimetype='application/xml')
+
+
+@store.route("/sitemap.xml")
+def sitemap():
+    parts = math.ceil(len(_sitemap_entries()) / SITEMAP_URLS_PER_FILE)
+    root = ET.Element('sitemapindex', xmlns=SITEMAP_NS)
+    for part in range(1, parts + 1):
+        ET.SubElement(ET.SubElement(root, 'sitemap'), 'loc').text = \
+            helpers.canonical_url_for('store.sitemap_part', part=part)
+    return _xml_response(root)
+
+
+@store.route("/sitemap/<int:part>.xml")
+def sitemap_part(part):
+    entries = _sitemap_entries()
+    start = (part - 1) * SITEMAP_URLS_PER_FILE
+    if part < 1 or start >= len(entries):
+        abort(404)
+    root = ET.Element('urlset', xmlns=SITEMAP_NS)
+    for loc, lastmod in entries[start:start + SITEMAP_URLS_PER_FILE]:
+        element = ET.SubElement(root, 'url')
+        ET.SubElement(element, 'loc').text = loc
+        if lastmod is not None:
+            ET.SubElement(element, 'lastmod').text = lastmod.strftime('%Y-%m-%d')
+    return _xml_response(root)

@@ -658,7 +658,7 @@ def check_sitemap_parts(client):
 
         base = whole[0].rsplit('/games', 1)[0]
         for url in ET.fromstring(client.get('/sitemap/1.xml').data).iter(ns + 'url'):
-            if url.find(ns + 'loc').text == f'{base}/games/{document["id"]}/screens':
+            if url.find(ns + 'loc').text == f'{base}/games/{document["id"]}':
                 if url.find(ns + 'lastmod') is not None:
                     problems.append('dateless game has a lastmod')
                 break
@@ -844,7 +844,7 @@ def run_checks():
                                              ('/games/999999', 404)):
             run.check(client, 'GET', noindex_path, noindex_status,
                       contains='content="noindex, follow"', lacks='rel="canonical"')
-        with patch.dict(config, google_site_verification='smoke-token'):
+        with patch.dict(config, google_site_verification=' smoke-token '):
             run.check(client, 'GET', '/games', 200,
                       contains='<meta name="google-site-verification" content="smoke-token" />')
         if not config.get('google_site_verification'):

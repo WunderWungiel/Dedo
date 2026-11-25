@@ -43,7 +43,7 @@ def utility_processor():
         canonical_url=helpers.canonical_for_request,
         og_image_for=helpers.og_image_for,
         site_description=helpers.SITE_DESCRIPTION,
-        google_site_verification=config.get('google_site_verification'),
+        google_site_verification=(config.get('google_site_verification') or '').strip(),
     )
 
 

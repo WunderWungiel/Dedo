@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 {% from 'macros.html' import game_row %}
 
-{% block title %}{% if text is defined %} {{ text }} {% else %} Games {% endif %}{% endblock %}
+{% set meta_description = description|default('', true) %}
+
+{% block title %}{{ (title|default(text|default('Games', true), true))|trim }} • Dedomil{% endblock %}
 
 {% block content %}
         {% if text is defined %}

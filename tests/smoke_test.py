@@ -610,8 +610,12 @@ def check_description_rendering(client):
                 problems.append(f'{document["title"]}: invalid XML: {error}')
 
         numeric = client.get(f'/games/{documents[1]["id"]}')
-        if b'12345' not in numeric.data:
+        if b'content="12345"' not in numeric.data:
             problems.append('numeric description was not rendered')
+        missing = client.get(f'/games/{documents[0]["id"]}')
+        expected = b'content="No Description Game by Other Vendor, a free mobile game."'
+        if expected not in missing.data:
+            problems.append('missing description did not use the fallback')
     return problems
 
 
@@ -844,8 +848,19 @@ def run_checks():
                   location='No+matches+found')
         run.check(client, 'GET', '/games/search/', 200, contains='name="q"')
 
-        run.check(client, 'GET', '/games/top', 200)
+        run.check(client, 'GET', '/games/top', 200,
+                  contains='<title>TOP 50 games • Dedomil</title>')
         run.check(client, 'GET', '/games/top/page/1', 200)
+        run.check(client, 'GET', '/games', 200,
+                  contains='<title>Free mobile games • Dedomil</title>')
+        run.check(client, 'GET', f'/games/{GAME_ID}', 200, contains=[
+            '<title>Download Smoke Game game • Dedomil</title>',
+            '<meta property="og:title" content="Download Smoke Game game • Dedomil" />'])
+        run.check(client, 'GET', f'/games/{GAME_ID}/screen/240x320', 200,
+                  contains='<title>Download Smoke Game 240x320 game • Dedomil</title>')
+        run.check(client, 'GET', '/games/vendor/Smoke%20Vendor', 200, contains=[
+            '<title>Games by Smoke Vendor • Dedomil</title>',
+            'content="Free mobile games by Smoke Vendor."'])
         # Out-of-range pages go back to the first/last page instead of 500.
         run.check(client, 'GET', '/games/top/page/0', 302, location_exact='/games/top')
         run.check(client, 'GET', '/games/top/page/99', 302, location_exact=last_top_url)

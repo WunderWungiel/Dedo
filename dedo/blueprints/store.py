@@ -111,7 +111,7 @@ def top_games(page=None):
     if redirect_response:
         return redirect_response
 
-    return render_template("list.html", endpoint=request.endpoint, results=results, text="TOP 50 games", pages=pages)
+    return render_template("list.html", endpoint=request.endpoint, results=results, text="TOP 50 games", description="The 50 most downloaded free mobile games.", pages=pages)
 
 
 @store.route("/games/latest")
@@ -121,7 +121,7 @@ def latest_games():
 
     pages = helpers.generate_pages(page=1, total_pages=1)
 
-    return render_template("list.html", endpoint=request.endpoint, results=results, text="Latest games", pages=pages)
+    return render_template("list.html", endpoint=request.endpoint, results=results, text="Latest games", description="The 15 newest free mobile games.", pages=pages)
 
 
 @store.route("/games/vendors")
@@ -167,7 +167,7 @@ def vendor_games(vendor, page=None):
     if redirect_response:
         return redirect_response
 
-    return render_template("list.html", endpoint=request.endpoint, results=results, text=vendor, url_args={'vendor': vendor}, pages=pages)
+    return render_template("list.html", endpoint=request.endpoint, results=results, text=vendor, title=f"Games by {vendor}", description=f"Free mobile games by {vendor}.", url_args={'vendor': vendor}, pages=pages)
 
 
 @store.route("/games/vendor")
@@ -192,7 +192,7 @@ def vendor_games_query():
     if redirect_response:
         return redirect_response
 
-    return render_template("list.html", endpoint=request.endpoint, results=results, text=vendor, url_args={'name': vendor}, pages=pages)
+    return render_template("list.html", endpoint=request.endpoint, results=results, text=vendor, title=f"Games by {vendor}", description=f"Free mobile games by {vendor}.", url_args={'name': vendor}, pages=pages)
 
 
 @store.route("/games/screens")
@@ -223,7 +223,7 @@ def resolution_games(resolution, page=None):
     if redirect_response:
         return redirect_response
 
-    return render_template("list.html", endpoint=request.endpoint, results=results, text=f"{resolution} games", url_args={'resolution': resolution}, pages=pages)
+    return render_template("list.html", endpoint=request.endpoint, results=results, text=f"{resolution} games", description=f"Free mobile games for {resolution} screens.", url_args={'resolution': resolution}, pages=pages)
 
 
 @store.route("/games/browse")
@@ -242,4 +242,4 @@ def browse_games(page=None):
     if redirect_response:
         return redirect_response
 
-    return render_template("list.html", endpoint=request.endpoint, results=results, text="All games", pages=pages)
+    return render_template("list.html", endpoint=request.endpoint, results=results, text="All games", description="Every free mobile game in the catalogue.", pages=pages)

@@ -1,5 +1,8 @@
 {% extends 'base.html' %}
 
+{% set og_game = game %}
+{% set meta_description = game['description'] | meta_description('') %}
+
 {% block title %}Download {{ game['title'] }} {{ resolution }} game{% endblock %}
 
 {% block content %}

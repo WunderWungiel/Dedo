@@ -39,13 +39,22 @@ app.cli.add_command(cli.create_indexes)
 @app.context_processor
 def utility_processor():
     return dict(
-        now=datetime.now()
+        now=datetime.now(),
+        canonical_url=helpers.canonical_for_request,
+        og_image_for=helpers.og_image_for,
+        site_description=helpers.SITE_DESCRIPTION,
+        google_site_verification=config.get('google_site_verification'),
     )
 
 
 @app.template_filter('nl2br')
 def nl2br_filter(text):
     return helpers.nl2br(text)
+
+
+@app.template_filter('meta_description')
+def meta_description_filter(text, fallback=''):
+    return helpers.meta_description(text, fallback)
 
 
 @app.template_filter('image_filename')

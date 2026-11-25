@@ -3,7 +3,7 @@ import os
 import re
 
 import humanize
-from flask import current_app, redirect, url_for
+from flask import current_app, has_request_context, redirect, request, url_for
 from markupsafe import Markup, escape
 
 from .config import CANONICAL_URL, CONTENT_DIR
@@ -28,6 +28,60 @@ def canonical_url_for(endpoint, **values):
         CANONICAL_URL.netloc, script_name=CANONICAL_URL.path or '/',
         url_scheme=CANONICAL_URL.scheme)
     return adapter.build(endpoint, values, force_external=True)
+
+
+# The query args each listing reads to pick what it shows. Every other arg is left out
+# of its canonical URL, so every variant of a listing points at one address.
+CANONICAL_ARGS = {'store.vendor_games_query': ('name', 'page')}
+
+
+def _positive_page(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 1 else None
+
+
+def canonical_for_request():
+    """The canonical URL of the current page, or None outside a matched route."""
+    if not has_request_context() or request.url_rule is None:
+        return None
+    values = dict(request.view_args or {})
+    if 'page' in values and not _positive_page(values['page']):
+        del values['page']
+    for name in CANONICAL_ARGS.get(request.endpoint, ()):
+        if name == 'page':
+            value = _positive_page(request.args.get('page', type=int))
+        else:
+            value = request.args.get(name) or None
+        if value:
+            values[name] = value
+    return canonical_url_for(request.endpoint, **values)
+
+
+SITE_DESCRIPTION = ('Free Java and Symbian games for classic mobile phones, '
+                    'sorted by screen resolution.')
+DESCRIPTION_LIMIT = 160
+
+
+def meta_description(text, fallback=''):
+    """Plain, single-line text for a description meta tag, at most 160 characters."""
+    text = '' if text is None else str(text)
+    text = ' '.join(XML_INVALID_CHARACTERS.sub('', text).split())
+    if not text:
+        return fallback
+    if len(text) > DESCRIPTION_LIMIT:
+        cut = text.rfind(' ', 0, DESCRIPTION_LIMIT - 3 + 1)
+        text = text[:cut if cut > 0 else DESCRIPTION_LIMIT - 3].rstrip() + '...'
+    return text
+
+
+def og_image_for(game):
+    """The canonical URL of a game's splash, else its screenshot, else None."""
+    if not game:
+        return None
+    for field, folder in (('splash', 'splashes'), ('screenshot', 'screenshots')):
+        filename = image_filename(game.get(field))
+        if filename:
+            return canonical_url_for('content', filename=f'images/{folder}/{filename}')
+    return None
 
 
 def generate_pages(page, total_pages):

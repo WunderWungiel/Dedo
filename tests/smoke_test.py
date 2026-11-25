@@ -753,9 +753,47 @@ def run_checks():
     last_top_page = (len(FIXTURES) + per_page - 1) // per_page
     last_top_url = '/games/top' if last_top_page == 1 else f'/games/top/page/{last_top_page}'
 
+    canonical_base = (config.get('canonical_url') or 'http://localhost').rstrip('/')
+
+    def check_meta_description():
+        problems = []
+        long = helpers.meta_description('word ' * 100)
+        if len(long) > 160 or not long.endswith('...'):
+            problems.append(f'long description came back as {long!r}')
+        if helpers.meta_description(None, 'fb') != 'fb':
+            problems.append('None did not use the fallback')
+        if helpers.meta_description(12345) != '12345':
+            problems.append('a number was not converted to text')
+        return problems
+
+    run.verify('meta description', check_meta_description)
+
     with app.test_client() as client:
         run.check(client, 'GET', '/', 302, location='/games')
         run.check(client, 'GET', '/games', 200, contains=f'/games/{GAME_ID}/screens')
+        run.check(client, 'GET', f'/games/{GAME_ID}?page=3&x=1', 200,
+                  contains=[f'<link rel="canonical" href="{canonical_base}/games/{GAME_ID}" />',
+                            f'<meta property="og:url" content="{canonical_base}/games/{GAME_ID}" />',
+                            f'<meta property="og:image" content="{canonical_base}/static/content/images/splashes/smoke.png" />',
+                            '<meta property="og:site_name" content="Dedomil" />',
+                            'content="Line one Line two &lt;b&gt;x&lt;/b&gt;"'],
+                  lacks='\x19')
+        run.check(client, 'GET', f'/games/{SLASH_ID}', 200, lacks='og:image')
+        for listing in ('/games/top/page/1', '/games/top/'):
+            run.check(client, 'GET', listing, 200,
+                      contains=f'href="{canonical_base}/games/top" />')
+        run.check(client, 'GET', '/games/vendor?name=Hugo%20Games%20A%2FS&page=1&junk=2', 200,
+                  contains='rel="canonical" href="' + canonical_base + '/games/vendor?name=Hugo',
+                  lacks=['junk', 'page=1'])
+        for noindex_path, noindex_status in (('/games/search', 200), ('/games/search/Smoke', 200),
+                                             ('/games/999999', 404)):
+            run.check(client, 'GET', noindex_path, noindex_status,
+                      contains='content="noindex, follow"', lacks='rel="canonical"')
+        with patch.dict(config, google_site_verification='smoke-token'):
+            run.check(client, 'GET', '/games', 200,
+                      contains='<meta name="google-site-verification" content="smoke-token" />')
+        if not config.get('google_site_verification'):
+            run.check(client, 'GET', '/games', 200, lacks='google-site-verification')
         with patch.object(db, 'get_random_game', return_value=None):
             run.check(client, 'GET', '/games', 200, contains='Search Games', lacks='/images/banners/')
 

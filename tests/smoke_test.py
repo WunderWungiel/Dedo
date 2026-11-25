@@ -821,7 +821,7 @@ def run_checks():
     run.verify('meta description', check_meta_description)
 
     with app.test_client() as client:
-        run.check(client, 'GET', '/', 302, location='/games')
+        run.check(client, 'GET', '/', 301, location='/games')
         run.check(client, 'GET', '/games', 200, contains=f'/games/{GAME_ID}/screens')
         run.check(client, 'GET', f'/games/{GAME_ID}?page=3&x=1', 200,
                   contains=[f'<link rel="canonical" href="{canonical_base}/games/{GAME_ID}" />',
@@ -918,10 +918,8 @@ def run_checks():
 
         run.check(client, 'GET', '/games/vendors', 200)
         run.check(client, 'GET', f'/games/vendor/{quote(GAME_VENDOR)}', 200, contains=GAME_TITLE)
-        # The legacy path form keeps its redirect for an unknown vendor; only
-        # the named query form added for slash values returns a 404.
-        run.check(client, 'GET', '/games/vendor/No%20Such%20Vendor', 302,
-                  location_exact='/games/vendors')
+        # Both vendor forms report an unknown vendor as a 404.
+        run.check(client, 'GET', '/games/vendor/No%20Such%20Vendor', 404, contains='Not found')
         run.verify('slash routing', lambda: check_slash_routes(client))
         run.verify('vendor pagination', lambda: check_vendor_pagination(client))
         run.verify('negative and past-the-end pages', lambda: check_negative_pages(client))

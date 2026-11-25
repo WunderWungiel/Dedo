@@ -18,7 +18,7 @@ def _game_or_404(id):
 
 @store.route("/")
 def root():
-    return redirect(url_for('store.games'))
+    return redirect(url_for('store.games'), code=301)
 
 
 @store.route("/games")
@@ -160,9 +160,7 @@ def vendor_games(vendor, page=None):
     total = db.count_games(conditions={'vendor': vendor})
 
     if not total:
-        # Keep the legacy path form's redirect. The named query form below is
-        # the one that reports an unknown vendor as a 404.
-        return redirect(url_for('store.vendors'))
+        abort(404)
 
     results, pages, redirect_response = helpers.paginate(
         page, total, lambda page: db.get_games(conditions={'vendor': vendor}, page=page),

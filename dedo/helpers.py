@@ -53,7 +53,13 @@ def canonical_for_request():
             value = request.args.get(name) or None
         if value:
             values[name] = value
-    return canonical_url_for(request.endpoint, **values)
+    endpoint = request.endpoint
+    # Vendor links and the sitemap use the path form unless the name has a slash,
+    # so the query form of such a vendor points at the path form.
+    if endpoint == 'store.vendor_games_query' and '/' not in values.get('name', '/'):
+        endpoint = 'store.vendor_games'
+        values['vendor'] = values.pop('name')
+    return canonical_url_for(endpoint, **values)
 
 
 SITE_DESCRIPTION = ('Free Java and Symbian games for classic mobile phones, '

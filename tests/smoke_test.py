@@ -837,6 +837,9 @@ def run_checks():
         run.check(client, 'GET', '/games/vendor?name=Hugo%20Games%20A%2FS&page=1&junk=2', 200,
                   contains='rel="canonical" href="' + canonical_base + '/games/vendor?name=Hugo',
                   lacks=['junk', 'page=1'])
+        # Without a slash, the query form names the path form the links use.
+        run.check(client, 'GET', '/games/vendor?name=Smoke%20Vendor&page=1', 200,
+                  contains=f'<link rel="canonical" href="{canonical_base}/games/vendor/Smoke%20Vendor" />')
         for noindex_path, noindex_status in (('/games/search', 200), ('/games/search/Smoke', 200),
                                              ('/games/999999', 404)):
             run.check(client, 'GET', noindex_path, noindex_status,
@@ -955,8 +958,11 @@ def run_checks():
                   body_equals=FIXTURE_FILES[os.path.join(CONTENT_DIR, 'images', 'splashes', 'smoke.png')])
         run.verify('bare missing content file', lambda: check_bare_missing_file(client))
         if config['allow_indexing']:
+            # The disallowed paths carry canonical_url's path prefix, like the Sitemap line.
+            robots_prefix = urlsplit(canonical_base).path
             run.check(client, 'GET', '/robots.txt', 200,
-                      contains=[f'Disallow: {api_prefix}/', 'Disallow: /static/content/files/',
+                      contains=[f'Disallow: {robots_prefix}{api_prefix}/',
+                                f'Disallow: {robots_prefix}/static/content/files/',
                                 f'Sitemap: {canonical_base}/sitemap.xml'],
                       lacks='Disallow: /games')
         else:

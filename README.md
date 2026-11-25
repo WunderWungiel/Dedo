@@ -126,7 +126,10 @@ API (`api_prefix`) and `/static/content/files/`, so crawlers skip game
 downloads but can still fetch images for `og:image`. Search pages stay
 crawlable so crawlers can read their `noindex` tag. It ends with a `Sitemap:`
 line. With `false`, it serves `dedo/static/robots.txt`, which disallows
-everything.
+everything. The disallowed paths carry `canonical_url`'s path prefix, like the
+`Sitemap:` line. Crawlers only read `/robots.txt` at the root of the host, so
+when Dedo runs under a prefix such as `/dedo`, the proxy must serve Dedo's
+`/dedo/robots.txt` at `/robots.txt`.
 
 `/sitemap.xml` is a sitemap index over `/sitemap/<n>.xml` parts of at most
 25,000 URLs each, because the bundled catalogue is larger than the protocol's
